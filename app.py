@@ -13,8 +13,8 @@ secrets = toml.load("streamlit/secrets.toml")
 st.title("Bioinformatics Chatbot")
 
 # OpenAI API Key
-llm4 = ChatOpenAI(openai_api_key="sk-proj-SaZDx5VEflyUeu51uK0LT3BlbkFJOppl7UnFA8uCwaPYYlxe", model="gpt-4o", temperature=0)
-llm3_5 = ChatOpenAI(openai_api_key="sk-proj-SaZDx5VEflyUeu51uK0LT3BlbkFJOppl7UnFA8uCwaPYYlxe", model="gpt-3.5-turbo", temperature=0)
+llm4 = ChatOpenAI(openai_api_key="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", model="gpt-4o", temperature=0)
+llm3_5 = ChatOpenAI(openai_api_key="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", model="gpt-3.5-turbo", temperature=0)
 
 # Neo4j Graph connection
 graph = Neo4jGraph(
