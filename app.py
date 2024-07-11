@@ -13,14 +13,14 @@ secrets = toml.load("streamlit/secrets.toml")
 st.title("Bioinformatics Chatbot")
 
 # OpenAI API Key
-llm4 = ChatOpenAI(openai_api_key="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", model="gpt-4o", temperature=0)
-llm3_5 = ChatOpenAI(openai_api_key="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", model="gpt-3.5-turbo", temperature=0)
+llm4 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
+llm3_5 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
 
 # Neo4j Graph connection
 graph = Neo4jGraph(
-    url="neo4j+s://3afee4ae.databases.neo4j.io",
-    username="neo4j",
-    password="sfdf8C5IhUMc7iO0_BbKxS2l58xpQLj_d9e9W8kTKSw"
+    url=st.secrets["url"],
+    username=st.secrets["username"],
+    password=st.secrets["password"]
 )
 
 decompose_prompt =  PromptTemplate(
