@@ -86,7 +86,7 @@ cypher_chain = GraphCypherQAChain.from_llm(
     cypher_prompt=cypher_generation_prompt,
     verbose=True,
     return_intermediate_steps=False,
-    return_intermediate_results=False
+    return_intermediate_results=False,
     top_k = 100
 )
 compile_prompt =  PromptTemplate(
