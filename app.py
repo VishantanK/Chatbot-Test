@@ -80,7 +80,6 @@ st.markdown("""
 
 st.markdown("""
     <div class="main-header">
-        <img src="n23_icon.png" width="50" />
         <h1>Bioinformatics Chatbot</h1>
     </div>
 """, unsafe_allow_html=True)
