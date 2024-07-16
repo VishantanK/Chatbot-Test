@@ -6,7 +6,6 @@ from langchain.chains import GraphCypherQAChain
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from typing import List
-import re
 import requests
 
 # Load secrets
@@ -107,12 +106,25 @@ compile_prompt =  PromptTemplate(
 
 compile_chain = LLMChain(llm=llm4, prompt=compile_prompt)
 
+gene_extraction_prompt = PromptTemplate(
+    input_variables=["text"],
+    template=
+    """
+    Extract all gene symbols from the following text. Gene symbols are typically all uppercase and may include numbers. Return the gene symbols as a comma-separated list.
+
+    Text: {text}
+    """
+)
+
+gene_extraction_chain = LLMChain(llm=llm4, prompt=gene_extraction_prompt)
+
 def compile_results(query: str, results: List[str], include_stringdb: bool) -> str:
     compiled_result = compile_chain.run(query=query, results="\n\n".join(results))
     
     if include_stringdb:
-        # Extract gene symbols from the query
-        gene_symbols = re.findall(r'\b[A-Z0-9]{2,}\b', query)
+        # Extract gene symbols from the final response
+        gene_symbols_text = gene_extraction_chain.run(text=compiled_result)
+        gene_symbols = [gene.strip() for gene in gene_symbols_text.split(',')]
         if gene_symbols:
             stringdb_url = get_stringdb_info(gene_symbols)
             compiled_result += f"\n\nSTRING DB Network: {stringdb_url}"
