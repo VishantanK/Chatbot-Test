@@ -9,11 +9,64 @@ from typing import List
 import requests
 import pyshorteners
 
-
 # Load secrets
 secrets = toml.load("streamlit/secrets.toml")
 
-st.title("Bioinformatics Chatbot")
+# Custom CSS for styling
+st.markdown("""
+    <style>
+        .chat-container {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: #f0f5f9;
+            padding: 10px;
+        }
+        .chat-box {
+            margin-top: 10px;
+            padding: 20px;
+            background: #e0e6eb;
+            border-radius: 5px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .chat-message {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .chat-message.user {
+            background: #b7d4da;
+            text-align: left;
+        }
+        .chat-message.assistant {
+            background: #d8eff2;
+            text-align: left;
+        }
+        .stMarkdown {
+            color: black;
+        }
+        .st-bu, .st-bv {
+            color: black;
+            border-color: #4CAF50;
+            background-color: #4CAF50;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Set up the app with an icon and a custom title
+st.set_page_config(
+    page_title="Bioinformatics Chatbot",
+    page_icon="n23_icon.png",
+    layout="wide"
+)
+
+st.markdown("""
+    <div style="display: flex; align-items: center;">
+        <img src="n23_icon.png" width="50" />
+        <h1 style="color: #4CAF50; margin-left: 10px;">Bioinformatics Chatbot</h1>
+    </div>
+""", unsafe_allow_html=True)
 
 # OpenAI API Key
 llm4 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
@@ -157,17 +210,18 @@ def get_stringdb_info(genes: List[str]) -> str:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+st.markdown('<div class="chat-box">', unsafe_allow_html=True)
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    role_class = "user" if message["role"] == "user" else "assistant"
+    st.markdown(f'<div class="chat-message {role_class}">{message["content"]}</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # Use Streamlit columns to place the input and checkbox side by side
 cols = st.columns([4, 1])
 with cols[0]:
     if prompt := st.chat_input("Ask a question about bioinformatics"):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+        st.markdown(f'<div class="chat-message user">{prompt}</div>', unsafe_allow_html=True)
 
 with cols[1]:
     stringdb_checkbox = st.checkbox("Include STRING DB")
@@ -179,7 +233,14 @@ if prompt:
         except Exception as e:
             full_response = f"An error occurred while processing your query: {e}"
 
-        with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            message_placeholder.markdown(full_response)
+        st.markdown(f'<div class="chat-message assistant">{full_response}</div>', unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+# Ensure the chat input is always visible at the bottom
+st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+cols = st.columns([4, 1])
+with cols[0]:
+    st.chat_input("Ask a question about bioinformatics", key="chat_input")
+with cols[1]:
+    st.checkbox("Include STRING DB", key="stringdb_checkbox")
+st.markdown('</div>', unsafe_allow_html=True)
