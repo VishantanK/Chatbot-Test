@@ -71,7 +71,7 @@ cypher_chain = GraphCypherQAChain.from_llm(
     verbose=True,
     return_intermediate_steps=False,
     return_intermediate_results=False,
-    top_k=50
+    top_k=30
 )
 
 compile_prompt = PromptTemplate(
@@ -122,11 +122,19 @@ def process_query(query: str, include_stringdb: bool) -> str:
     for subquery in subqueries:
         try:
             result = cypher_chain.invoke({"query": subquery})
-            results.append(f"Subquery: {subquery}\nResult: {result['result']}")
+            if not result['result']:
+                # If the result is empty, handle it appropriately
+                results.append(f"Subquery: {subquery}\nResult: No data found in the graph database for this subquery.")
+            else:
+                results.append(f"Subquery: {subquery}\nResult: {result['result']}")
         except Exception as e:
             results.append(f"Subquery: {subquery}\nError: {e}")
     
+    # Compile results and add disclaimer for external knowledge
     final_result = compile_results(query, results, include_stringdb)
+    if "No data found" in final_result:
+        additional_info = llm4.run(f"Provide information on {query} from general knowledge.")
+        final_result += f"\n\n{additional_info}\n\nDisclaimer: Some information is based on existing knowledge in the field of bioinformatics and biology."
     
     return final_result
 
