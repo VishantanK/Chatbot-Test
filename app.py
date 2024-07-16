@@ -5,7 +5,7 @@ from langchain_community.graphs import Neo4jGraph
 from langchain.chains import GraphCypherQAChain
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
-from typing import List, Tuple
+from typing import List
 import requests
 
 # Load secrets
@@ -15,6 +15,7 @@ st.title("Bioinformatics Chatbot")
 
 # OpenAI API Key
 llm4 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
+llm3_5 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
 
 # Neo4j Graph connection
 graph = Neo4jGraph(
@@ -23,56 +24,136 @@ graph = Neo4jGraph(
     password=st.secrets["password"]
 )
 
-compile_and_extract_prompt = PromptTemplate(
-    input_variables=["query", "results"],
-    template="""
-    You are a domain expert in bioinformatics and biology. Compile the results from the Cypher queries into a coherent answer for the original query.
-    Also, extract all gene symbols from the final answer. Gene symbols are typically all uppercase and may include numbers.
-    Return the compiled answer followed by the gene symbols as a comma-separated list.
+decompose_prompt =  PromptTemplate(
+    input_variables=["schema", "query"],
+    template=
+    """
+    Given the schema: {schema}, and the query: {query}, decompose the query into a series of relevant subqueries. 
+    Each subquery will be used to invoke a GraphCypherQAChain to retrieve the answer.
+    Examples:
+    1. If the query asks you to give information on the risks associated with a particular gene, give information from all nodes, relations or properties that are involved with risk for instance risk score, SMR, colocalization, sources etc.
+    2. If the query asks for a Gene Ontology, give all the relevant information on the gene ontology
+    3. If statistical significance is mentioned, ensure that p-value is < 0.05.
+    4. If asked about directionality, look at the beta value
+    5. Properties such as p-value, beta, risk sources etc. are stores as relation properties and not node properties. So, ensure that you are looking at the correct properties.
+    6. For questions that have a simple answer, such as "What is the name of the gene?" or "What does this annotation term mean?" Just output 1 subquery that retrieves the answer.
+    7. Do not generate redundant subqueries such as outputting the gene node when a simple count is asked for.
+    
+    If a query can be answered by a single subquery, DO NOT output multiple subqueries.
 
-    Original query: {query}
-    Cypher query results: {results}
+    KEEP THE NUMBER OF SUBQUERIES TO A MINIMUM. 
+    DO NOT MAKE SUBQUERIES THAT GIVE SAME INFORMATION.
+    DO NOT MAKE SUBQUERIES THAT ARE NOT RELEVANT TO THE QUERY.
+    DO NOT OUTPUT A CYPHER QUERY AS A SUBQUERY.
+    DO NOT MAKE DUPLICATE SUBQUERIES.
+    MAXIMUM OF 3 SUBQUERIES.
+
+    Output the subqueries in a numbered list, with each subquery on a new line.
     """
 )
 
-compile_and_extract_chain = LLMChain(llm=llm4, prompt=compile_and_extract_prompt)
+decompose_chain = LLMChain(llm=llm4, prompt=decompose_prompt)
 
-def compile_results_and_extract_genes(query: str, results: List[str]) -> Tuple[str, List[str]]:
-    inputs = {
-        "query": query,
-        "results": "\n\n".join(results)
-    }
-    result = compile_and_extract_chain.run(inputs)
-    try:
-        compiled_answer, genes_text = result.rsplit("\n\n", 1)
-        gene_symbols = [gene.strip() for gene in genes_text.split(',')]
-    except ValueError:
-        compiled_answer = result
-        gene_symbols = []
-    return compiled_answer, gene_symbols
+def decompose_query(query: str, schema: str) -> List[str]:
+    result = decompose_chain.run(schema=schema, query=query)
+    # Split the result into individual subqueries
+    subqueries = [sq.strip() for sq in result.split('\n') if sq.strip() and sq[0].isdigit()]
+    return subqueries
+
+# Defining a prompt template
+CYPHER_GENERATION_TEMPLATE = """
+You are an expert Neo4j Developer translating user questions into Cypher to answer questions about bioinformatics and biology from given Knowledge Graphs
+
+Instructions:
+ONLY ANSWER IN CYPHER QUERIES
+RETURN CORRECT QUERIES ONLY
+P-VALUE AND BETA ARE ALWAYS RELATIONSHIP PROPERTIES CALLED AS:
+(g:GENE)-[r:HAS_GWAS_RISK]->(gwas:RISK_GWAS) RETURN r.p_value, r.beta (EXAMPLE JUST FOR GWAS)
+
+Schema: {schema}
+Question: {question}
+"""
+
+# Initializing prompt Template
+cypher_generation_prompt = PromptTemplate(
+    template=CYPHER_GENERATION_TEMPLATE,
+    input_variables=["schema", "question"],
+)
+
+# Initialize the chain
+cypher_chain = GraphCypherQAChain.from_llm(
+    llm4,
+    graph=graph,
+    cypher_prompt=cypher_generation_prompt,
+    verbose=True,
+    return_intermediate_steps=False,
+    return_intermediate_results=False,
+    top_k = 50
+)
+compile_prompt =  PromptTemplate(
+    input_variables=["query", "results"],
+    template=
+    """
+    You are a domain expert in bioinformatics and biology and will compile cypher query results into a single coherent answer given the original query:{query} And the following results from subqueries: {results}
+    DO NOT cite anything
+    DO NOT include the original query in the answer
+    CAN use existing knowledge to compile the answer
+    If information is missing, answer based on your existing knowledge
+    PROVIDE DISCLAIMER if using existing knowledge
+    Be concise and to the point
+    """
+)
+
+compile_chain = LLMChain(llm=llm4, prompt=compile_prompt)
+
+gene_extraction_prompt = PromptTemplate(
+    input_variables=["text"],
+    template=
+    """
+    Extract all gene symbols from the following text. Gene symbols are typically all uppercase and may include numbers. Return the gene symbols as a comma-separated list.
+
+    Text: {text}
+    """
+)
+
+gene_extraction_chain = LLMChain(llm=llm4, prompt=gene_extraction_prompt)
+
+def compile_results(query: str, results: List[str], include_stringdb: bool) -> str:
+    compiled_result = compile_chain.run(query=query, results="\n\n".join(results))
+    
+    if include_stringdb:
+        # Extract gene symbols from the final response
+        gene_symbols_text = gene_extraction_chain.run(text=compiled_result)
+        gene_symbols = [gene.strip() for gene in gene_symbols_text.split(',')]
+        if gene_symbols:
+            stringdb_url = get_stringdb_info(gene_symbols)
+            compiled_result += f"\n\nSTRING DB Network: {stringdb_url}"
+    
+    return compiled_result
 
 def process_query(query: str, include_stringdb: bool) -> str:
-    # Use GraphCypherQAChain to decompose, generate Cypher, and execute in one step
-    qa_chain = GraphCypherQAChain.from_llm(
-        llm=llm4,
-        graph=graph,
-        verbose=True,
-        return_intermediate_steps=False,
-        return_intermediate_results=False,
-        top_k=50
-    )
-
-    result = qa_chain.run(query=query)
-    results = [f"Result: {result}"]
-
-    # Compile results and extract gene symbols in a single call
-    final_answer, gene_symbols = compile_results_and_extract_genes(query, results)
+    # Get the schema
+    schema = graph.schema.split("\n")
     
-    if include_stringdb and gene_symbols:
-        stringdb_url = get_stringdb_info(gene_symbols)
-        final_answer += f"\n\nSTRING DB Network: {stringdb_url}"
+    # Decompose query
+    subqueries = decompose_query(query, schema)
     
-    return final_answer
+    # Print subqueries
+    print("Generated subqueries:")
+    for i, subquery in enumerate(subqueries, 1):
+        print(f"{subquery}")
+    print("\n")
+    
+    # Execute subqueries
+    results = []
+    for subquery in subqueries:
+        result = cypher_chain.invoke({"query": subquery})
+        results.append(f"Subquery: {subquery}\nResult: {result['result']}")
+    
+    # Compile results
+    final_result = compile_results(query, results, include_stringdb)
+    
+    return final_result
 
 def get_stringdb_info(genes: List[str]) -> str:
     base_url = "https://string-db.org/cgi/network?identifiers="
@@ -102,16 +183,6 @@ with cols[0]:
 
 with cols[1]:
     stringdb_checkbox = st.checkbox("Include STRING DB")
-
-# Initialize the chain
-cypher_chain = GraphCypherQAChain.from_llm(
-    llm=llm4,
-    graph=graph,
-    verbose=True,
-    return_intermediate_steps=False,
-    return_intermediate_results=False,
-    top_k=50
-)
 
 if prompt:
     full_response = process_query(prompt, stringdb_checkbox)
