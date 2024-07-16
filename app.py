@@ -92,6 +92,7 @@ gene_extraction_prompt = PromptTemplate(
     input_variables=["text"],
     template="""
     Extract all gene symbols from the following text. Gene symbols are typically all uppercase and may include numbers. Return the gene symbols as a comma-separated list.
+    Just output the comma separated list. NO OTHER TEXT
 
     Text: {text}
     """
