@@ -7,6 +7,8 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from typing import List
 import requests
+import pyshorteners
+
 
 # Load secrets
 secrets = toml.load("streamlit/secrets.toml")
@@ -142,9 +144,12 @@ def get_stringdb_info(genes: List[str]) -> str:
     base_url = "https://string-db.org/cgi/network?identifiers="
     gene_string = "%0d".join(genes)
     url = f"{base_url}{gene_string}&species=9606&show_query_node_labels=1"
+    
+    type_tiny = pyshorteners.Shortener()
+    
     response = requests.get(url)
     if response.status_code == 200:
-        return url
+        return type_tiny.tinyurl.short(url)
     else:
         return "Failed to retrieve data from STRING DB"
 
