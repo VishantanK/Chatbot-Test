@@ -6,6 +6,7 @@ from langchain.chains import GraphCypherQAChain
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from typing import List
+import requests
 
 # Load secrets
 secrets = toml.load("streamlit/secrets.toml")
@@ -108,6 +109,7 @@ compile_chain = LLMChain(llm=llm4, prompt=compile_prompt)
 def compile_results(query: str, results: List[str]) -> str:
     compiled_result = compile_chain.run(query=query, results="\n\n".join(results))
     return compiled_result
+
 def process_query(query: str) -> str:
     # Get the schema
     schema = graph.schema.split("\n")
@@ -132,6 +134,16 @@ def process_query(query: str) -> str:
     
     return final_result
 
+def get_stringdb_info(genes: List[str]) -> str:
+    base_url = "https://string-db.org/cgi/network?identifiers="
+    gene_string = "%0d".join(genes)
+    url = f"{base_url}{gene_string}&species=9606&show_query_node_labels=1"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return url
+    else:
+        return "Failed to retrieve data from STRING DB"
+
 # Streamlit chat interface
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -144,9 +156,18 @@ if prompt := st.chat_input("Ask a question about bioinformatics"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-
+    
+    # Add a checkbox for additional functionality
+    stringdb_checkbox = st.checkbox("Include additional functionality with STRING DB API")
+    
+    if stringdb_checkbox:
+        genes = ["JAKMIP1", "CAPN7", "FCGR2A", "UBA3", "ATF6", "AGPAT1", "LTB", "CALML4", "IQCA1L", "RIPK2", "RASA2", "TIAM1", "CD6", "TFRC", "CD8A", "ERN1", "INPP5D", "NEDD4"]
+        stringdb_url = get_stringdb_info(genes)
+        full_response = process_query(prompt) + f"\n\nSTRING DB Network: {stringdb_url}"
+    else:
+        full_response = process_query(prompt)
+    
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        full_response = process_query(prompt)
         message_placeholder.markdown(full_response)
     st.session_state.messages.append({"role": "assistant", "content": full_response})
