@@ -22,6 +22,20 @@ secrets = toml.load("streamlit/secrets.toml")
 # Custom CSS for styling
 st.markdown("""
     <style>
+        .main-header {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: white;
+            border-bottom: 1px solid #ccc;
+        }
+        .main-header img {
+            margin-right: 10px;
+        }
+        .main-header h1 {
+            color: #4CAF50;
+            margin: 0;
+        }
         .chat-container {
             position: fixed;
             bottom: 0;
@@ -32,7 +46,7 @@ st.markdown("""
         .chat-box {
             margin-top: 10px;
             padding: 20px;
-            background: #f0f5f9;
+            background: #ffffff;
             border-radius: 5px;
             max-height: 70vh;
             overflow-y: auto;
@@ -47,7 +61,7 @@ st.markdown("""
             text-align: left;
         }
         .chat-message.assistant {
-            background: #ffffff;
+            background: #f9f9f9;
             text-align: left;
         }
         .stMarkdown {
@@ -58,13 +72,16 @@ st.markdown("""
             border-color: #4CAF50;
             background-color: #4CAF50;
         }
+        .stTextInput, .stCheckbox {
+            background-color: white;
+        }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown("""
-    <div style="display: flex; align-items: center;">
-        <img src="/mnt/data/n23_icon.png" width="50" />
-        <h1 style="color: #4CAF50; margin-left: 10px;">Bioinformatics Chatbot</h1>
+    <div class="main-header">
+        <img src="n23_icon.png" width="50" />
+        <h1>Bioinformatics Chatbot</h1>
     </div>
 """, unsafe_allow_html=True)
 
@@ -217,11 +234,15 @@ for message in st.session_state.messages:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # Use Streamlit columns to place the input and checkbox side by side
-if prompt := st.chat_input("Ask a question about bioinformatics"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    st.markdown(f'<div class="chat-message user">{prompt}</div>', unsafe_allow_html=True)
+cols = st.columns([4, 1])
+with cols[0]:
+    prompt = st.chat_input("Ask a question about bioinformatics")
+    if prompt:
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.markdown(f'<div class="chat-message user">{prompt}</div>', unsafe_allow_html=True)
 
-stringdb_checkbox = st.checkbox("Include STRING DB")
+with cols[1]:
+    stringdb_checkbox = st.checkbox("Include STRING DB")
 
 if prompt:
     with st.spinner('Processing your query...'):
@@ -232,12 +253,3 @@ if prompt:
 
         st.markdown(f'<div class="chat-message assistant">{full_response}</div>', unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": full_response})
-
-# Ensure the chat input is always visible at the bottom
-st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-cols = st.columns([4, 1])
-with cols[0]:
-    st.chat_input("Ask a question about bioinformatics", key="chat_input")
-with cols[1]:
-    st.checkbox("Include STRING DB", key="stringdb_checkbox")
-st.markdown('</div>', unsafe_allow_html=True)
