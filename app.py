@@ -6,6 +6,7 @@ from langchain.chains import GraphCypherQAChain
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from typing import List
+import re
 import requests
 
 # Load secrets
@@ -106,11 +107,19 @@ compile_prompt =  PromptTemplate(
 
 compile_chain = LLMChain(llm=llm4, prompt=compile_prompt)
 
-def compile_results(query: str, results: List[str]) -> str:
+def compile_results(query: str, results: List[str], include_stringdb: bool) -> str:
     compiled_result = compile_chain.run(query=query, results="\n\n".join(results))
+    
+    if include_stringdb:
+        # Extract gene symbols from the query
+        gene_symbols = re.findall(r'\b[A-Z0-9]{2,}\b', query)
+        if gene_symbols:
+            stringdb_url = get_stringdb_info(gene_symbols)
+            compiled_result += f"\n\nSTRING DB Network: {stringdb_url}"
+    
     return compiled_result
 
-def process_query(query: str) -> str:
+def process_query(query: str, include_stringdb: bool) -> str:
     # Get the schema
     schema = graph.schema.split("\n")
     
@@ -130,7 +139,7 @@ def process_query(query: str) -> str:
         results.append(f"Subquery: {subquery}\nResult: {result['result']}")
     
     # Compile results
-    final_result = compile_results(query, results)
+    final_result = compile_results(query, results, include_stringdb)
     
     return final_result
 
@@ -164,13 +173,8 @@ with cols[1]:
     stringdb_checkbox = st.checkbox("Include STRING DB")
 
 if prompt:
-    if stringdb_checkbox:
-        genes = ["JAKMIP1", "CAPN7", "FCGR2A", "UBA3", "ATF6", "AGPAT1", "LTB", "CALML4", "IQCA1L", "RIPK2", "RASA2", "TIAM1", "CD6", "TFRC", "CD8A", "ERN1", "INPP5D", "NEDD4"]
-        stringdb_url = get_stringdb_info(genes)
-        full_response = process_query(prompt) + f"\n\nSTRING DB Network: {stringdb_url}"
-    else:
-        full_response = process_query(prompt)
-
+    full_response = process_query(prompt, stringdb_checkbox)
+    
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         message_placeholder.markdown(full_response)
