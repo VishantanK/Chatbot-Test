@@ -15,7 +15,6 @@ st.title("Bioinformatics Chatbot")
 
 # OpenAI API Key
 llm4 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
-llm3_5 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
 
 # Neo4j Graph connection
 graph = Neo4jGraph(
@@ -23,22 +22,6 @@ graph = Neo4jGraph(
     username=st.secrets["username"],
     password=st.secrets["password"]
 )
-
-decompose_and_generate_prompt =  PromptTemplate(
-    input_variables=["schema", "query"],
-    template=
-    """
-    Given the schema: {schema}, and the query: {query}, decompose the query into relevant subqueries and generate corresponding Cypher queries.
-    Output the Cypher queries in a numbered list, with each query on a new line.
-
-    Example:
-    1. MATCH (go:GENE_ONTOLOGY {annotation_term: "Cytoplasm"}) RETURN go
-    2. MATCH (p:Protein)-[:ANNOTATED_WITH]->(go:GENE_ONTOLOGY {annotation_term: "Cytoplasm"}) RETURN p
-    3. MATCH (g:GENE)-[:ENCODES]->(p:Protein)-[:ANNOTATED_WITH]->(go:GENE_ONTOLOGY {annotation_term: "Cytoplasm"}) RETURN g
-    """
-)
-
-decompose_and_generate_chain = LLMChain(llm=llm4, prompt=decompose_and_generate_prompt)
 
 compile_and_extract_prompt =  PromptTemplate(
     input_variables=["query", "results"],
@@ -55,16 +38,6 @@ compile_and_extract_prompt =  PromptTemplate(
 
 compile_and_extract_chain = LLMChain(llm=llm4, prompt=compile_and_extract_prompt)
 
-def decompose_and_generate_queries(query: str, schema: str) -> List[str]:
-    inputs = {
-        "schema": schema,
-        "query": query
-    }
-    result = decompose_and_generate_chain.run(inputs)
-    # Split the result into individual Cypher queries
-    cypher_queries = [cq.strip() for cq in result.split('\n') if cq.strip() and cq[0].isdigit()]
-    return cypher_queries
-
 def compile_results_and_extract_genes(query: str, results: List[str]) -> Tuple[str, List[str]]:
     inputs = {
         "query": query,
@@ -76,24 +49,19 @@ def compile_results_and_extract_genes(query: str, results: List[str]) -> Tuple[s
     return compiled_answer, gene_symbols
 
 def process_query(query: str, include_stringdb: bool) -> str:
-    # Get the schema
-    schema = graph.schema.split("\n")
-    
-    # Decompose query and generate Cypher queries in a single call
-    cypher_queries = decompose_and_generate_queries(query, schema)
-    
-    # Print Cypher queries
-    print("Generated Cypher queries:")
-    for i, cypher_query in enumerate(cypher_queries, 1):
-        print(f"{cypher_query}")
-    print("\n")
-    
-    # Execute Cypher queries
-    results = []
-    for cypher_query in cypher_queries:
-        result = cypher_chain.invoke({"query": cypher_query})
-        results.append(f"Cypher query: {cypher_query}\nResult: {result['result']}")
-    
+    # Use GraphCypherQAChain to decompose, generate Cypher, and execute in one step
+    qa_chain = GraphCypherQAChain.from_llm(
+        llm=llm4,
+        graph=graph,
+        verbose=True,
+        return_intermediate_steps=False,
+        return_intermediate_results=False,
+        top_k=50
+    )
+
+    result = qa_chain.run(query=query)
+    results = [f"Result: {result}"]
+
     # Compile results and extract gene symbols in a single call
     final_answer, gene_symbols = compile_results_and_extract_genes(query, results)
     
@@ -131,16 +99,6 @@ with cols[0]:
 
 with cols[1]:
     stringdb_checkbox = st.checkbox("Include STRING DB")
-
-# Initialize the chain
-cypher_chain = GraphCypherQAChain.from_llm(
-    llm=llm4,
-    graph=graph,
-    verbose=True,
-    return_intermediate_steps=False,
-    return_intermediate_results=False,
-    top_k = 50
-)
 
 if prompt:
     full_response = process_query(prompt, stringdb_checkbox)
