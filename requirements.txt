@@ -104,6 +104,7 @@ pydantic_core==2.18.4
 pydeck==0.9.1
 Pygments==2.18.0
 pyparsing==3.1.2
+pyshorteners==1.0.1
 python-dateutil==2.9.0
 python-dotenv==1.0.1
 pytz==2024.1
@@ -146,7 +147,6 @@ urllib3==2.2.2
 wcwidth==0.2.13
 Werkzeug==3.0.3
 wheel==0.43.0
-pyshorteners
 wrapt==1.16.0
 xmltodict==0.13.0
 yarl==1.9.4
