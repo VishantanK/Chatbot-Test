@@ -9,6 +9,14 @@ from typing import List
 import requests
 import pyshorteners
 
+
+# Set up the app with an icon and a custom title
+st.set_page_config(
+    page_title="Bioinformatics Chatbot",
+    page_icon="n23_icon.png",
+    layout="wide"
+)
+
 # Load secrets
 secrets = toml.load("streamlit/secrets.toml")
 
@@ -54,12 +62,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Set up the app with an icon and a custom title
-st.set_page_config(
-    page_title="Bioinformatics Chatbot",
-    page_icon="n23_icon.png",
-    layout="wide"
-)
 
 st.markdown("""
     <div style="display: flex; align-items: center;">
