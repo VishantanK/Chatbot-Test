@@ -12,12 +12,12 @@ import pyshorteners
 # Set up the app with an icon and a custom title
 st.set_page_config(
     page_title="Bioinformatics Chatbot",
-    page_icon="n23_icon.png",
+    page_icon="streamlit/n23_icon.png",
     layout="wide"
 )
 
 # Load secrets
-secrets = toml.load("secrets.toml")
+secrets = toml.load("streamlit/secrets.toml")
 
 # Custom CSS for styling
 st.markdown("""
