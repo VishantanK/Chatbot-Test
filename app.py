@@ -9,7 +9,6 @@ from typing import List
 import requests
 import pyshorteners
 
-
 # Set up the app with an icon and a custom title
 st.set_page_config(
     page_title="Bioinformatics Chatbot",
@@ -18,7 +17,7 @@ st.set_page_config(
 )
 
 # Load secrets
-secrets = toml.load("streamlit/secrets.toml")
+secrets = toml.load("secrets.toml")
 
 # Custom CSS for styling
 st.markdown("""
@@ -33,7 +32,7 @@ st.markdown("""
         .chat-box {
             margin-top: 10px;
             padding: 20px;
-            background: #e0e6eb;
+            background: #f0f5f9;
             border-radius: 5px;
             max-height: 70vh;
             overflow-y: auto;
@@ -44,11 +43,11 @@ st.markdown("""
             margin-bottom: 10px;
         }
         .chat-message.user {
-            background: #b7d4da;
+            background: #e0e6eb;
             text-align: left;
         }
         .chat-message.assistant {
-            background: #d8eff2;
+            background: #ffffff;
             text-align: left;
         }
         .stMarkdown {
@@ -62,23 +61,22 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-
 st.markdown("""
     <div style="display: flex; align-items: center;">
-        <img src="n23_icon.png" width="50" />
+        <img src="/mnt/data/n23_icon.png" width="50" />
         <h1 style="color: #4CAF50; margin-left: 10px;">Bioinformatics Chatbot</h1>
     </div>
 """, unsafe_allow_html=True)
 
 # OpenAI API Key
-llm4 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
-llm3_5 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
+llm4 = ChatOpenAI(openai_api_key=secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
+llm3_5 = ChatOpenAI(openai_api_key=secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
 
 # Neo4j Graph connection
 graph = Neo4jGraph(
-    url=st.secrets["url"],
-    username=st.secrets["username"],
-    password=st.secrets["password"]
+    url=secrets["url"],
+    username=secrets["username"],
+    password=secrets["password"]
 )
 
 # Improved decomposition prompt template
@@ -219,14 +217,11 @@ for message in st.session_state.messages:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # Use Streamlit columns to place the input and checkbox side by side
-cols = st.columns([4, 1])
-with cols[0]:
-    if prompt := st.chat_input("Ask a question about bioinformatics"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        st.markdown(f'<div class="chat-message user">{prompt}</div>', unsafe_allow_html=True)
+if prompt := st.chat_input("Ask a question about bioinformatics"):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.markdown(f'<div class="chat-message user">{prompt}</div>', unsafe_allow_html=True)
 
-with cols[1]:
-    stringdb_checkbox = st.checkbox("Include STRING DB")
+stringdb_checkbox = st.checkbox("Include STRING DB")
 
 if prompt:
     with st.spinner('Processing your query...'):
