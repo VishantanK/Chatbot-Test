@@ -5,7 +5,7 @@ from langchain_community.graphs import Neo4jGraph
 from langchain.chains import GraphCypherQAChain
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
-from typing import List
+from typing import List, Tuple
 import requests
 
 # Load secrets
@@ -56,13 +56,21 @@ compile_and_extract_prompt =  PromptTemplate(
 compile_and_extract_chain = LLMChain(llm=llm4, prompt=compile_and_extract_prompt)
 
 def decompose_and_generate_queries(query: str, schema: str) -> List[str]:
-    result = decompose_and_generate_chain.run(schema=schema, query=query)
+    inputs = {
+        "schema": schema,
+        "query": query
+    }
+    result = decompose_and_generate_chain.run(inputs)
     # Split the result into individual Cypher queries
     cypher_queries = [cq.strip() for cq in result.split('\n') if cq.strip() and cq[0].isdigit()]
     return cypher_queries
 
-def compile_results_and_extract_genes(query: str, results: List[str]) -> (str, List[str]):
-    result = compile_and_extract_chain.run(query=query, results="\n\n".join(results))
+def compile_results_and_extract_genes(query: str, results: List[str]) -> Tuple[str, List[str]]:
+    inputs = {
+        "query": query,
+        "results": "\n\n".join(results)
+    }
+    result = compile_and_extract_chain.run(inputs)
     compiled_answer, genes_text = result.split("\n\n")
     gene_symbols = [gene.strip() for gene in genes_text.split(',')]
     return compiled_answer, gene_symbols
@@ -126,7 +134,7 @@ with cols[1]:
 
 # Initialize the chain
 cypher_chain = GraphCypherQAChain.from_llm(
-    llm4,
+    llm=llm4,
     graph=graph,
     verbose=True,
     return_intermediate_steps=False,
