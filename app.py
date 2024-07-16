@@ -23,12 +23,11 @@ graph = Neo4jGraph(
     password=st.secrets["password"]
 )
 
-compile_and_extract_prompt =  PromptTemplate(
+compile_and_extract_prompt = PromptTemplate(
     input_variables=["query", "results"],
-    template=
-    """
-    You are a domain expert in bioinformatics and biology. Compile the results from the Cypher queries into a coherent answer for the original query. 
-    Also, extract all gene symbols from the final answer. Gene symbols are typically all uppercase and may include numbers. 
+    template="""
+    You are a domain expert in bioinformatics and biology. Compile the results from the Cypher queries into a coherent answer for the original query.
+    Also, extract all gene symbols from the final answer. Gene symbols are typically all uppercase and may include numbers.
     Return the compiled answer followed by the gene symbols as a comma-separated list.
 
     Original query: {query}
@@ -44,8 +43,12 @@ def compile_results_and_extract_genes(query: str, results: List[str]) -> Tuple[s
         "results": "\n\n".join(results)
     }
     result = compile_and_extract_chain.run(inputs)
-    compiled_answer, genes_text = result.split("\n\n")
-    gene_symbols = [gene.strip() for gene in genes_text.split(',')]
+    try:
+        compiled_answer, genes_text = result.rsplit("\n\n", 1)
+        gene_symbols = [gene.strip() for gene in genes_text.split(',')]
+    except ValueError:
+        compiled_answer = result
+        gene_symbols = []
     return compiled_answer, gene_symbols
 
 def process_query(query: str, include_stringdb: bool) -> str:
@@ -99,6 +102,16 @@ with cols[0]:
 
 with cols[1]:
     stringdb_checkbox = st.checkbox("Include STRING DB")
+
+# Initialize the chain
+cypher_chain = GraphCypherQAChain.from_llm(
+    llm=llm4,
+    graph=graph,
+    verbose=True,
+    return_intermediate_steps=False,
+    return_intermediate_results=False,
+    top_k=50
+)
 
 if prompt:
     full_response = process_query(prompt, stringdb_checkbox)
