@@ -14,14 +14,14 @@ secrets = toml.load("streamlit/secrets.toml")
 st.title("Bioinformatics Chatbot")
 
 # OpenAI API Key
-llm4 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
-llm3_5 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
+llm4 = ChatOpenAI(openai_api_key=secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
+llm3_5 = ChatOpenAI(openai_api_key=secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
 
 # Neo4j Graph connection
 graph = Neo4jGraph(
-    url=st.secrets["url"],
-    username=st.secrets["username"],
-    password=st.secrets["password"]
+    url=secrets["url"],
+    username=secrets["username"],
+    password=secrets["password"]
 )
 
 # Improved decomposition prompt template
@@ -58,6 +58,8 @@ cypher_generation_prompt = PromptTemplate(
 
     Schema: {schema}
     Question: {question}
+
+    Example: If the question is to find the top 5 genes with the highest risk score, ensure the query sorts by the risk score and limits the results to the top 5.
     """,
     input_variables=["schema", "question"],
 )
@@ -92,7 +94,6 @@ gene_extraction_prompt = PromptTemplate(
     input_variables=["text"],
     template="""
     Extract all gene symbols from the following text. Gene symbols are typically all uppercase and may include numbers. Return the gene symbols as a comma-separated list.
-    Just output the comma separated list. NO OTHER TEXT
 
     Text: {text}
     """
