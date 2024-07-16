@@ -152,21 +152,25 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("Ask a question about bioinformatics"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    
-    # Add a checkbox for additional functionality
-    stringdb_checkbox = st.checkbox("Include additional functionality with STRING DB API")
-    
+# Use Streamlit columns to place the input and checkbox side by side
+cols = st.columns([4, 1])
+with cols[0]:
+    if prompt := st.chat_input("Ask a question about bioinformatics"):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+with cols[1]:
+    stringdb_checkbox = st.checkbox("Include STRING DB")
+
+if prompt:
     if stringdb_checkbox:
         genes = ["JAKMIP1", "CAPN7", "FCGR2A", "UBA3", "ATF6", "AGPAT1", "LTB", "CALML4", "IQCA1L", "RIPK2", "RASA2", "TIAM1", "CD6", "TFRC", "CD8A", "ERN1", "INPP5D", "NEDD4"]
         stringdb_url = get_stringdb_info(genes)
         full_response = process_query(prompt) + f"\n\nSTRING DB Network: {stringdb_url}"
     else:
         full_response = process_query(prompt)
-    
+
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         message_placeholder.markdown(full_response)
