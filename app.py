@@ -30,6 +30,11 @@ decompose_and_generate_prompt =  PromptTemplate(
     """
     Given the schema: {schema}, and the query: {query}, decompose the query into relevant subqueries and generate corresponding Cypher queries.
     Output the Cypher queries in a numbered list, with each query on a new line.
+
+    Example:
+    1. MATCH (go:GENE_ONTOLOGY {annotation_term: "Cytoplasm"}) RETURN go
+    2. MATCH (p:Protein)-[:ANNOTATED_WITH]->(go:GENE_ONTOLOGY {annotation_term: "Cytoplasm"}) RETURN p
+    3. MATCH (g:GENE)-[:ENCODES]->(p:Protein)-[:ANNOTATED_WITH]->(go:GENE_ONTOLOGY {annotation_term: "Cytoplasm"}) RETURN g
     """
 )
 
@@ -118,6 +123,17 @@ with cols[0]:
 
 with cols[1]:
     stringdb_checkbox = st.checkbox("Include STRING DB")
+
+# Initialize the chain
+cypher_chain = GraphCypherQAChain.from_llm(
+    llm4,
+    graph=graph,
+    cypher_prompt=cypher_generation_prompt,
+    verbose=True,
+    return_intermediate_steps=False,
+    return_intermediate_results=False,
+    top_k = 50
+)
 
 if prompt:
     full_response = process_query(prompt, stringdb_checkbox)
