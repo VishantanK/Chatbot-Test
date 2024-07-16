@@ -128,7 +128,6 @@ with cols[1]:
 cypher_chain = GraphCypherQAChain.from_llm(
     llm4,
     graph=graph,
-    cypher_prompt=cypher_generation_prompt,
     verbose=True,
     return_intermediate_steps=False,
     return_intermediate_results=False,
