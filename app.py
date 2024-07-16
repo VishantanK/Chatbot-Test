@@ -14,39 +14,26 @@ secrets = toml.load("streamlit/secrets.toml")
 st.title("Bioinformatics Chatbot")
 
 # OpenAI API Key
-llm4 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
-llm3_5 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
+llm4 = ChatOpenAI(openai_api_key=secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
+llm3_5 = ChatOpenAI(openai_api_key=secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
 
 # Neo4j Graph connection
 graph = Neo4jGraph(
-    url=st.secrets["url"],
-    username=st.secrets["username"],
-    password=st.secrets["password"]
+    url=secrets["url"],
+    username=secrets["username"],
+    password=secrets["password"]
 )
 
-decompose_prompt =  PromptTemplate(
+# Improved decomposition prompt template
+decompose_prompt = PromptTemplate(
     input_variables=["schema", "query"],
-    template=
-    """
-    Given the schema: {schema}, and the query: {query}, decompose the query into a series of relevant subqueries. 
-    Each subquery will be used to invoke a GraphCypherQAChain to retrieve the answer.
-    Examples:
-    1. If the query asks you to give information on the risks associated with a particular gene, give information from all nodes, relations or properties that are involved with risk for instance risk score, SMR, colocalization, sources etc.
-    2. If the query asks for a Gene Ontology, give all the relevant information on the gene ontology
-    3. If statistical significance is mentioned, ensure that p-value is < 0.05.
-    4. If asked about directionality, look at the beta value
-    5. Properties such as p-value, beta, risk sources etc. are stores as relation properties and not node properties. So, ensure that you are looking at the correct properties.
-    6. For questions that have a simple answer, such as "What is the name of the gene?" or "What does this annotation term mean?" Just output 1 subquery that retrieves the answer.
-    7. Do not generate redundant subqueries such as outputting the gene node when a simple count is asked for.
-    
-    If a query can be answered by a single subquery, DO NOT output multiple subqueries.
+    template="""
+    Given the schema: {schema} and the query: {query}, decompose the query into the minimum number of necessary subqueries to retrieve the relevant information. Ensure that each subquery is unique and relevant. Avoid redundancy and irrelevant subqueries.
 
-    KEEP THE NUMBER OF SUBQUERIES TO A MINIMUM. 
-    DO NOT MAKE SUBQUERIES THAT GIVE SAME INFORMATION.
-    DO NOT MAKE SUBQUERIES THAT ARE NOT RELEVANT TO THE QUERY.
-    DO NOT OUTPUT A CYPHER QUERY AS A SUBQUERY.
-    DO NOT MAKE DUPLICATE SUBQUERIES.
-    MAXIMUM OF 3 SUBQUERIES.
+    Examples:
+    1. If the query is about the most significant GWAS hit for a gene, provide only the relevant information like GWAS hit details (id, chr, pos, ea, oa, beta, pval) and associated risk.
+    2. If statistical significance is mentioned, ensure the p-value is < 0.05.
+    3. If asked about directionality, look at the beta value.
 
     Output the subqueries in a numbered list, with each subquery on a new line.
     """
@@ -56,31 +43,25 @@ decompose_chain = LLMChain(llm=llm4, prompt=decompose_prompt)
 
 def decompose_query(query: str, schema: str) -> List[str]:
     result = decompose_chain.run(schema=schema, query=query)
-    # Split the result into individual subqueries
     subqueries = [sq.strip() for sq in result.split('\n') if sq.strip() and sq[0].isdigit()]
     return subqueries
 
-# Defining a prompt template
-CYPHER_GENERATION_TEMPLATE = """
-You are an expert Neo4j Developer translating user questions into Cypher to answer questions about bioinformatics and biology from given Knowledge Graphs
-
-Instructions:
-ONLY ANSWER IN CYPHER QUERIES
-RETURN CORRECT QUERIES ONLY
-P-VALUE AND BETA ARE ALWAYS RELATIONSHIP PROPERTIES CALLED AS:
-(g:GENE)-[r:HAS_GWAS_RISK]->(gwas:RISK_GWAS) RETURN r.p_value, r.beta (EXAMPLE JUST FOR GWAS)
-
-Schema: {schema}
-Question: {question}
-"""
-
-# Initializing prompt Template
+# Improved Cypher query generation template
 cypher_generation_prompt = PromptTemplate(
-    template=CYPHER_GENERATION_TEMPLATE,
+    template="""
+    You are an expert Neo4j Developer translating user questions into Cypher to answer questions about bioinformatics and biology from given Knowledge Graphs.
+
+    Instructions:
+    ONLY ANSWER IN CYPHER QUERIES.
+    RETURN CORRECT QUERIES ONLY.
+    P-VALUE AND BETA ARE ALWAYS RELATIONSHIP PROPERTIES.
+
+    Schema: {schema}
+    Question: {question}
+    """,
     input_variables=["schema", "question"],
 )
 
-# Initialize the chain
 cypher_chain = GraphCypherQAChain.from_llm(
     llm4,
     graph=graph,
@@ -88,19 +69,20 @@ cypher_chain = GraphCypherQAChain.from_llm(
     verbose=True,
     return_intermediate_steps=False,
     return_intermediate_results=False,
-    top_k = 50
+    top_k=50
 )
-compile_prompt =  PromptTemplate(
+
+compile_prompt = PromptTemplate(
     input_variables=["query", "results"],
-    template=
-    """
-    You are a domain expert in bioinformatics and biology and will compile cypher query results into a single coherent answer given the original query:{query} And the following results from subqueries: {results}
-    DO NOT cite anything
-    DO NOT include the original query in the answer
-    CAN use existing knowledge to compile the answer
-    If information is missing, answer based on your existing knowledge
-    PROVIDE DISCLAIMER if using existing knowledge
-    Be concise and to the point
+    template="""
+    You are a domain expert in bioinformatics and biology and will compile Cypher query results into a single coherent answer.
+
+    Query: {query}
+    Results: {results}
+
+    DO NOT cite anything.
+    PROVIDE DISCLAIMER if using existing knowledge.
+    Be concise and to the point.
     """
 )
 
@@ -108,8 +90,7 @@ compile_chain = LLMChain(llm=llm4, prompt=compile_prompt)
 
 gene_extraction_prompt = PromptTemplate(
     input_variables=["text"],
-    template=
-    """
+    template="""
     Extract all gene symbols from the following text. Gene symbols are typically all uppercase and may include numbers. Return the gene symbols as a comma-separated list.
 
     Text: {text}
@@ -132,25 +113,17 @@ def compile_results(query: str, results: List[str], include_stringdb: bool) -> s
     return compiled_result
 
 def process_query(query: str, include_stringdb: bool) -> str:
-    # Get the schema
-    schema = graph.schema.split("\n")
-    
-    # Decompose query
+    schema = graph.schema
     subqueries = decompose_query(query, schema)
     
-    # Print subqueries
-    print("Generated subqueries:")
-    for i, subquery in enumerate(subqueries, 1):
-        print(f"{subquery}")
-    print("\n")
-    
-    # Execute subqueries
     results = []
     for subquery in subqueries:
-        result = cypher_chain.invoke({"query": subquery})
-        results.append(f"Subquery: {subquery}\nResult: {result['result']}")
+        try:
+            result = cypher_chain.invoke({"query": subquery})
+            results.append(f"Subquery: {subquery}\nResult: {result['result']}")
+        except Exception as e:
+            results.append(f"Subquery: {subquery}\nError: {e}")
     
-    # Compile results
     final_result = compile_results(query, results, include_stringdb)
     
     return final_result
@@ -185,9 +158,13 @@ with cols[1]:
     stringdb_checkbox = st.checkbox("Include STRING DB")
 
 if prompt:
-    full_response = process_query(prompt, stringdb_checkbox)
-    
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        message_placeholder.markdown(full_response)
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+    with st.spinner('Processing your query...'):
+        try:
+            full_response = process_query(prompt, stringdb_checkbox)
+        except Exception as e:
+            full_response = f"An error occurred while processing your query: {e}"
+
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            message_placeholder.markdown(full_response)
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
