@@ -73,7 +73,7 @@ st.markdown("""
             background-color: #4CAF50;
         }
         .stTextInput, .stCheckbox {
-            background-color: white;
+            background-color: grey;
         }
     </style>
 """, unsafe_allow_html=True)
