@@ -89,14 +89,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # OpenAI API Key
-llm4 = ChatOpenAI(openai_api_key=secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
-llm3_5 = ChatOpenAI(openai_api_key=secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
+llm4 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
+llm3_5 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
 
 # Neo4j Graph connection
 graph = Neo4jGraph(
-    url=secrets["url"],
-    username=secrets["username"],
-    password=secrets["password"]
+    url=st.secrets["url"],
+    username=st.secrets["username"],
+    password=st.secrets["password"]
 )
 
 # Improved decomposition prompt template
