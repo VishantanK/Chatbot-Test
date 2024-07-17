@@ -52,6 +52,8 @@ decompose_prompt = PromptTemplate(
     1. If the query is about the most significant GWAS hit for a gene, provide only the relevant information like GWAS hit details (id, chr, pos, ea, oa, beta, pval) and associated risk.
     2. If statistical significance is mentioned, ensure the p-value is < 0.05.
     3. If asked about directionality, look at the beta value.
+    4. MAX 3 subqueries per query. NO DUPLICATES
+    5. ONLY give relevant responses
 
     Output the subqueries in a numbered list, with each subquery on a new line.
     """
