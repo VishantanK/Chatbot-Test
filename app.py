@@ -202,6 +202,6 @@ if prompt := st.chat_input("Ask a question about bioinformatics"):
 
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        full_response = process_query(prompt)
+        full_response = process_query(prompt, model, max_token_length, include_stringdb)
         message_placeholder.markdown(full_response)
     st.session_state.messages.append({"role": "assistant", "content": full_response})
