@@ -15,7 +15,7 @@ secrets = toml.load("streamlit/secrets.toml")
 # Set up the app with an icon and a custom title
 st.set_page_config(
     page_title="Bioinformatics Chatbot",
-    page_icon="/mnt/data/n23_icon.png",
+    page_icon="n23_icon.png",
     initial_sidebar_state="expanded",
     layout="wide"
 )
