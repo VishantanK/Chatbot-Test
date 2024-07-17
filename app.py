@@ -55,14 +55,25 @@ graph = Neo4jGraph(
 decompose_prompt = PromptTemplate(
     input_variables=["schema", "query"],
     template="""
-    Given the schema: {schema} and the query: {query}, decompose the query into the minimum number of necessary subqueries to retrieve the relevant information. Ensure that each subquery is unique and relevant. Avoid redundancy and irrelevant subqueries.
-
+    Given the schema: {schema}, and the query: {query}, decompose the query into a series of relevant subqueries. 
+    Each subquery will be used to invoke a GraphCypherQAChain to retrieve the answer.
     Examples:
-    1. If the query is about the most significant GWAS hit for a gene, provide only the relevant information like GWAS hit details (id, chr, pos, ea, oa, beta, pval) and associated risk.
-    2. If statistical significance is mentioned, ensure the p-value is < 0.05.
-    3. If asked about directionality, look at the beta value.
-    4. MAX 3 subqueries per query. NO DUPLICATES
-    5. ONLY give relevant responses
+    1. If the query asks you to give information on the risks associated with a particular gene, give information from all nodes, relations or properties that are involved with risk for instance risk score, SMR, colocalization, sources etc.
+    2. If the query asks for a Gene Ontology, give all the relevant information on the gene ontology
+    3. If statistical significance is mentioned, ensure that p-value is < 0.05.
+    4. If asked about directionality, look at the beta value
+    5. Properties such as p-value, beta, risk sources etc. are stores as relation properties and not node properties. So, ensure that you are looking at the correct properties.
+    6. For questions that have a simple answer, such as "What is the name of the gene?" or "What does this annotation term mean?" Just output 1 subquery that retrieves the answer.
+    7. Do not generate redundant subqueries such as outputting the gene node when a simple count is asked for.
+    
+    If a query can be answered by a single subquery, DO NOT output multiple subqueries.
+
+    KEEP THE NUMBER OF SUBQUERIES TO A MINIMUM. 
+    DO NOT MAKE SUBQUERIES THAT GIVE SAME INFORMATION.
+    DO NOT MAKE SUBQUERIES THAT ARE NOT RELEVANT TO THE QUERY.
+    DO NOT OUTPUT A CYPHER QUERY AS A SUBQUERY.
+    DO NOT MAKE DUPLICATE SUBQUERIES.
+    MAXIMUM OF 3 SUBQUERIES.
 
     Output the subqueries in a numbered list, with each subquery on a new line.
     """
@@ -78,18 +89,17 @@ def decompose_query(query: str, schema: str) -> List[str]:
 # Improved Cypher query generation template
 cypher_generation_prompt = PromptTemplate(
     template="""
-    You are an expert Neo4j Developer translating user questions into Cypher to answer questions about bioinformatics and biology from given Knowledge Graphs.
+    You are an expert Neo4j Developer translating user questions into Cypher to answer questions about bioinformatics and biology from given Knowledge Graphs
 
     Instructions:
-    ONLY ANSWER IN CYPHER QUERIES.
-    RETURN CORRECT QUERIES ONLY.
-    P-VALUE AND BETA ARE ALWAYS RELATIONSHIP PROPERTIES.
-
+    ONLY ANSWER IN CYPHER QUERIES
+    RETURN CORRECT QUERIES ONLY
+    P-VALUE AND BETA ARE ALWAYS RELATIONSHIP PROPERTIES CALLED AS:
+    (g:GENE)-[r:HAS_GWAS_RISK]->(gwas:RISK_GWAS) RETURN r.p_value, r.beta (EXAMPLE JUST FOR GWAS)
+    
     Schema: {schema}
     Question: {question}
-
-    Example: If the question is to find the top 5 genes with the highest risk score, ensure the query sorts by the risk score and limits the results to the top 5.
-    """,
+    """
     input_variables=["schema", "question"],
 )
 
@@ -106,14 +116,13 @@ cypher_chain = GraphCypherQAChain.from_llm(
 compile_prompt = PromptTemplate(
     input_variables=["query", "results"],
     template="""
-    You are a domain expert in bioinformatics and biology and will compile Cypher query results into a single coherent answer.
-
-    Query: {query}
-    Results: {results}
-
-    DO NOT cite anything.
-    PROVIDE DISCLAIMER if using existing knowledge.
-    Be concise and to the point.
+    You are a domain expert in bioinformatics and biology and will compile cypher query results into a single coherent answer given the original query:{query} And the following results from subqueries: {results}
+    DO NOT cite anything
+    DO NOT include the original query in the answer
+    CAN use existing knowledge to compile the answer
+    If information is missing, answer based on your existing knowledge
+    PROVIDE DISCLAIMER if using existing knowledge
+    Be concise and to the point
     """
 )
 
@@ -183,28 +192,42 @@ def get_stringdb_info(genes: List[str]) -> str:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+st.markdown('<div class="chat-box">', unsafe_allow_html=True)
 for message in st.session_state.messages:
-    with st.container():
-        col1, col2 = st.columns([1, 12])
-        if message["role"] == "user":
-            with col1:
-                st.write("🧑")  # User emoji
-            with col2:
-                st.text_area("User", value=message["content"], height=100, disabled=True)
-        else:
-            with col1:
-                st.write("🤖")  # Bot emoji
-            with col2:
-                st.text_area("Assistant", value=message["content"], height=100, disabled=True)
+    role_class = "user" if message["role"] == "user" else "assistant"
+    st.markdown(f'<div class="chat-message {role_class}">{message["content"]}</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
+    if message["role"] == "user":
+        st.markdown(f'''
+        <div class="chat-message user">
+            <div class="avatar">
+                <img src="https://i.ibb.co/rdZC7LZ/Photo-logo-1.png">
+            </div>
+            <div class="message">{message["content"]}</div>
+        </div>
+        ''', unsafe_allow_html=True)
+    else:
+        st.markdown(f'''
+        <div class="chat-message bot">
+            <div class="avatar">
+                <img src="https://i.ibb.co/cN0nmSj/Photo-logo-2.png">
+            </div>
+            <div class="message">{message["content"]}</div>
+        </div>
+        ''', unsafe_allow_html=True)
 
+# Use Streamlit columns to place the input and checkbox side by side
 if user_prompt := st.chat_input("Ask a question about bioinformatics"):
     st.session_state.messages.append({"role": "user", "content": user_prompt})
-    with st.container():
-        col1, col2 = st.columns([1, 12])
-        with col1:
-            st.write("🧑")  # User emoji
-        with col2:
-            st.text_area("User", value=user_prompt, height=100, disabled=True)
+    st.markdown(f'<div class="chat-message user">{user_prompt}</div>', unsafe_allow_html=True)
+    st.markdown(f'''
+    <div class="chat-message user">
+        <div class="avatar">
+            <img src="https://i.ibb.co/rdZC7LZ/Photo-logo-1.png">
+        </div>
+        <div class="message">{user_prompt}</div>
+    </div>
+    ''', unsafe_allow_html=True)
 
     with st.spinner('Processing your query...'):
         try:
@@ -212,10 +235,13 @@ if user_prompt := st.chat_input("Ask a question about bioinformatics"):
         except Exception as e:
             full_response = f"An error occurred while processing your query: {e}"
 
+        st.markdown(f'<div class="chat-message assistant">{full_response}</div>', unsafe_allow_html=True)
+        st.markdown(f'''
+        <div class="chat-message bot">
+            <div class="avatar">
+                <img src="https://i.ibb.co/cN0nmSj/Photo-logo-2.png">
+            </div>
+            <div class="message">{full_response}</div>
+        </div>
+        ''', unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": full_response})
-        with st.container():
-            col1, col2 = st.columns([1, 12])
-            with col1:
-                st.write("🤖")  # Bot emoji
-            with col2:
-                st.text_area("Assistant", value=full_response, height=100, disabled=True)
