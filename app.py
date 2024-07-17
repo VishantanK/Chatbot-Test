@@ -34,8 +34,8 @@ st.title("Bioinformatics Chatbot")
 # Sidebar options
 with st.sidebar:
     st.markdown("# Chat Options")
-    use_model = st.selectbox('Select model', ('gpt-3.5-turbo', 'gpt-4o'), help="GPT4o is more accurate but a bit more expensive")
-    max_token_length = st.number_input('Max Token Length', value=1000, min_value=200, max_value=1000, step=100,
+    use_model = st.selectbox('Select model', ('gpt-4o', 'gpt-3.5-turbo'), help="GPT4o is more accurate but a bit more expensive")
+    max_token_length = st.number_input('Max Token Length', value=1000, min_value=200, max_value=2000, step=100,
                                        help="Tokens increase accuracy for a bit higher cost")
     include_stringdb = st.checkbox("Include STRING DB")
 
