@@ -61,7 +61,7 @@ st.markdown("""
             text-align: left;
         }
         .chat-message.assistant {
-            background: #f9f9f9;
+            background: #ffffff;
             text-align: left;
         }
         .stMarkdown {
