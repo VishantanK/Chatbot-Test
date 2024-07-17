@@ -57,7 +57,7 @@ st.markdown("""
             margin-bottom: 10px;
         }
         .chat-message.user {
-            background: #e0e6eb;
+            background: #ffffff;
             text-align: left;
         }
         .chat-message.assistant {
