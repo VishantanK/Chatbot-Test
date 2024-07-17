@@ -30,63 +30,6 @@ with st.sidebar:
                                        help="Maximum number of tokens to be used when generating output.")
     include_stringdb = st.checkbox("Include STRING DB")
 
-# Custom CSS for styling
-st.markdown("""
-    <style>
-        .main-header {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            background-color: white;
-            border-bottom: 1px solid #ccc;
-        }
-        .main-header img {
-            margin-right: 10px;
-        }
-        .main-header h1 {
-            color: #4CAF50;
-            margin: 0;
-        }
-        .chat-container {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            background: #f0f5f9;
-            padding: 10px;
-        }
-        .chat-box {
-            margin-top: 10px;
-            padding: 20px;
-            background: #ffffff;
-            border-radius: 5px;
-            max-height: 70vh;
-            overflow-y: auto;
-        }
-        .chat-message {
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-        .chat-message.user {
-            background: #e0e6eb;
-            text-align: left;
-        }
-        .chat-message.assistant {
-            background: #f9f9f9;
-            text-align: left;
-        }
-        .stMarkdown {
-            color: black;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-    <div class="main-header">
-        <img src="/mnt/data/n23_icon.png" width="50" />
-        <h1>Bioinformatics Chatbot</h1>
-    </div>
-""", unsafe_allow_html=True)
 
 # OpenAI API Key
 llm4 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
