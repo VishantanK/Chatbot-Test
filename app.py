@@ -180,40 +180,31 @@ def get_stringdb_info(genes: List[str]) -> str:
     else:
         return "Failed to retrieve data from STRING DB"
 
-# Streamlit chat interface
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 for message in st.session_state.messages:
-    if message["role"] == "user":
-        st.markdown(f'''
-        <div class="chat-message user">
-            <div class="avatar">
-                <img src="n23_icon.png">
-            </div>
-            <div class="message">{message["content"]}</div>
-        </div>
-        ''', unsafe_allow_html=True)
-    else:
-        st.markdown(f'''
-        <div class="chat-message bot">
-            <div class="avatar">
-                <img src="n23_icon.png">
-            </div>
-            <div class="message">{message["content"]}</div>
-        </div>
-        ''', unsafe_allow_html=True)
+    with st.container():
+        col1, col2 = st.columns([1, 12])
+        if message["role"] == "user":
+            with col1:
+                st.write("🧑")  # User emoji
+            with col2:
+                st.text_area("User", value=message["content"], height=100, disabled=True)
+        else:
+            with col1:
+                st.write("🤖")  # Bot emoji
+            with col2:
+                st.text_area("Assistant", value=message["content"], height=100, disabled=True)
 
 if user_prompt := st.chat_input("Ask a question about bioinformatics"):
     st.session_state.messages.append({"role": "user", "content": user_prompt})
-    st.markdown(f'''
-    <div class="chat-message user">
-        <div class="avatar">
-            <img src="https://i.ibb.co/rdZC7LZ/Photo-logo-1.png">
-        </div>
-        <div class="message">{user_prompt}</div>
-    </div>
-    ''', unsafe_allow_html=True)
+    with st.container():
+        col1, col2 = st.columns([1, 12])
+        with col1:
+            st.write("🧑")  # User emoji
+        with col2:
+            st.text_area("User", value=user_prompt, height=100, disabled=True)
 
     with st.spinner('Processing your query...'):
         try:
@@ -221,12 +212,10 @@ if user_prompt := st.chat_input("Ask a question about bioinformatics"):
         except Exception as e:
             full_response = f"An error occurred while processing your query: {e}"
 
-        st.markdown(f'''
-        <div class="chat-message bot">
-            <div class="avatar">
-                <img src="https://i.ibb.co/cN0nmSj/Photo-logo-2.png">
-            </div>
-            <div class="message">{full_response}</div>
-        </div>
-        ''', unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": full_response})
+        with st.container():
+            col1, col2 = st.columns([1, 12])
+            with col1:
+                st.write("🤖")  # Bot emoji
+            with col2:
+                st.text_area("Assistant", value=full_response, height=100, disabled=True)
