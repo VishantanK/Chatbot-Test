@@ -39,16 +39,15 @@ with st.sidebar:
                                        help="Maximum number of tokens to be used when generating output.")
     include_stringdb = st.checkbox("Include STRING DB")
 
-
 # OpenAI API Key
-llm4 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
-llm3_5 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
+llm4 = ChatOpenAI(openai_api_key=secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
+llm3_5 = ChatOpenAI(openai_api_key=secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
 
 # Neo4j Graph connection
 graph = Neo4jGraph(
-    url=st.secrets["url"],
-    username=st.secrets["username"],
-    password=st.secrets["password"]
+    url=secrets["url"],
+    username=secrets["username"],
+    password=secrets["password"]
 )
 
 # Improved decomposition prompt template
@@ -197,7 +196,7 @@ for message in st.session_state.messages:
         st.markdown(f'''
         <div class="chat-message user">
             <div class="avatar">
-                <img src="icons/user.png">
+                <img src="icons/user.png" width="32" height="32">
             </div>
             <div class="message">{message["content"]}</div>
         </div>
@@ -206,7 +205,7 @@ for message in st.session_state.messages:
         st.markdown(f'''
         <div class="chat-message bot">
             <div class="avatar">
-                <img src="n23_icon.png">
+                <img src="n23_icon.png" width="32" height="32">
             </div>
             <div class="message">{message["content"]}</div>
         </div>
@@ -217,7 +216,7 @@ if user_prompt := st.chat_input("Ask a question about bioinformatics"):
     st.markdown(f'''
     <div class="chat-message user">
         <div class="avatar">
-            <img src="icons/user.png">
+            <img src="icons/user.png" width="32" height="32">
         </div>
         <div class="message">{user_prompt}</div>
     </div>
@@ -232,7 +231,7 @@ if user_prompt := st.chat_input("Ask a question about bioinformatics"):
         st.markdown(f'''
         <div class="chat-message bot">
             <div class="avatar">
-                <img src="n23_icon.png">
+                <img src="n23_icon.png" width="32" height="32">
             </div>
             <div class="message">{full_response}</div>
         </div>
