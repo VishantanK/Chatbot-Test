@@ -99,7 +99,7 @@ cypher_generation_prompt = PromptTemplate(
     
     Schema: {schema}
     Question: {question}
-    """
+    """,
     input_variables=["schema", "question"],
 )
 
