@@ -35,8 +35,7 @@ st.title("Bioinformatics Chatbot")
 with st.sidebar:
     st.markdown("# Chat Options")
     use_model = st.selectbox('Select model', ('gpt-4o', 'gpt-3.5-turbo'), help="GPT4o is more accurate but a bit more expensive")
-    max_token_length = st.number_input('Max Token Length', value=1000, min_value=200, max_value=2000, step=100,
-                                       help="Tokens increase accuracy for a bit higher cost")
+    max_token_length = st.selectbox('Max Token Length', (None, 20000, 10000, 5000), help="Can decrease to reduce chat-cost")
     include_stringdb = st.checkbox("Include STRING DB")
 
 # OpenAI API Key
