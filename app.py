@@ -192,48 +192,15 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 for message in st.session_state.messages:
-    if message["role"] == "user":
-        st.markdown(f'''
-        <div class="chat-message user">
-            <div class="avatar">
-                <img src="icons/user.png" width="32" height="32">
-            </div>
-            <div class="message">{message["content"]}</div>
-        </div>
-        ''', unsafe_allow_html=True)
-    else:
-        st.markdown(f'''
-        <div class="chat-message bot">
-            <div class="avatar">
-                <img src="n23_icon.png" width="32" height="32">
-            </div>
-            <div class="message">{message["content"]}</div>
-        </div>
-        ''', unsafe_allow_html=True)
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
 if user_prompt := st.chat_input("Ask a question about bioinformatics"):
     st.session_state.messages.append({"role": "user", "content": user_prompt})
-    st.markdown(f'''
-    <div class="chat-message user">
-        <div class="avatar">
-            <img src="icons/user.png" width="32" height="32">
-        </div>
-        <div class="message">{user_prompt}</div>
-    </div>
-    ''', unsafe_allow_html=True)
 
     with st.spinner('Processing your query...'):
         try:
             full_response = process_query(user_prompt, model, max_token_length, include_stringdb)
         except Exception as e:
             full_response = f"An error occurred while processing your query: {e}"
-
-        st.markdown(f'''
-        <div class="chat-message bot">
-            <div class="avatar">
-                <img src="n23_icon.png" width="32" height="32">
-            </div>
-            <div class="message">{full_response}</div>
-        </div>
-        ''', unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": full_response})
