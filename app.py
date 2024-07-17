@@ -9,15 +9,26 @@ from typing import List
 import requests
 import pyshorteners
 
+# Load secrets
+secrets = toml.load("streamlit/secrets.toml")
+
 # Set up the app with an icon and a custom title
 st.set_page_config(
     page_title="Bioinformatics Chatbot",
-    page_icon="n23_icon.png",
+    page_icon="/mnt/data/n23_icon.png",
+    initial_sidebar_state="expanded",
     layout="wide"
 )
 
-# Load secrets
-secrets = toml.load("streamlit/secrets.toml")
+st.title("Bioinformatics Chatbot")
+
+# Sidebar options
+with st.sidebar:
+    st.markdown("# Chat Options")
+    model = st.selectbox('Select model', ('gpt-3.5-turbo', 'gpt-4o'))
+    max_token_length = st.number_input('Max Token Length', value=1000, min_value=200, max_value=1000, step=100,
+                                       help="Maximum number of tokens to be used when generating output.")
+    include_stringdb = st.checkbox("Include STRING DB")
 
 # Custom CSS for styling
 st.markdown("""
@@ -57,42 +68,35 @@ st.markdown("""
             margin-bottom: 10px;
         }
         .chat-message.user {
-            background: #ffffff;
+            background: #e0e6eb;
             text-align: left;
         }
         .chat-message.assistant {
-            background: #ffffff;
+            background: #f9f9f9;
             text-align: left;
         }
         .stMarkdown {
             color: black;
-        }
-        .st-bu, .st-bv {
-            color: black;
-            border-color: #4CAF50;
-            background-color: #4CAF50;
-        }
-        .stTextInput, .stCheckbox {
-            background-color: grey;
         }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown("""
     <div class="main-header">
+        <img src="/mnt/data/n23_icon.png" width="50" />
         <h1>Bioinformatics Chatbot</h1>
     </div>
 """, unsafe_allow_html=True)
 
 # OpenAI API Key
-llm4 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
-llm3_5 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
+llm4 = ChatOpenAI(openai_api_key=secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
+llm3_5 = ChatOpenAI(openai_api_key=secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
 
 # Neo4j Graph connection
 graph = Neo4jGraph(
-    url=st.secrets["url"],
-    username=st.secrets["username"],
-    password=st.secrets["password"]
+    url=secrets["url"],
+    username=secrets["username"],
+    password=secrets["password"]
 )
 
 # Improved decomposition prompt template
@@ -185,7 +189,7 @@ def compile_results(query: str, results: List[str], include_stringdb: bool) -> s
     
     return compiled_result
 
-def process_query(query: str, include_stringdb: bool) -> str:
+def process_query(query: str, model: str, max_token_length: int, include_stringdb: bool) -> str:
     schema = graph.schema
     subqueries = decompose_query(query, schema)
     
@@ -204,7 +208,7 @@ def process_query(query: str, include_stringdb: bool) -> str:
     # Compile results and add disclaimer for external knowledge
     final_result = compile_results(query, results, include_stringdb)
     if "No data found" in final_result:
-        additional_info = llm4.run(f"Provide information on {query} from general knowledge.")
+        additional_info = llm4.run(f"Provide information on {query} from general knowledge.", model=model, max_tokens=max_token_length)
         final_result += f"\n\n{additional_info}\n\nDisclaimer: Some information is based on existing knowledge in the field of bioinformatics and biology."
     
     return final_result
@@ -233,20 +237,13 @@ for message in st.session_state.messages:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # Use Streamlit columns to place the input and checkbox side by side
-cols = st.columns([4, 1])
-with cols[0]:
-    prompt = st.chat_input("Ask a question about bioinformatics")
-    if prompt:
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        st.markdown(f'<div class="chat-message user">{prompt}</div>', unsafe_allow_html=True)
+if user_prompt := st.chat_input("Ask a question about bioinformatics"):
+    st.session_state.messages.append({"role": "user", "content": user_prompt})
+    st.markdown(f'<div class="chat-message user">{user_prompt}</div>', unsafe_allow_html=True)
 
-with cols[1]:
-    stringdb_checkbox = st.checkbox("Include STRING DB")
-
-if prompt:
     with st.spinner('Processing your query...'):
         try:
-            full_response = process_query(prompt, stringdb_checkbox)
+            full_response = process_query(user_prompt, model, max_token_length, include_stringdb)
         except Exception as e:
             full_response = f"An error occurred while processing your query: {e}"
 
