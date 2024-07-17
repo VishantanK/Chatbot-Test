@@ -192,16 +192,12 @@ def get_stringdb_info(genes: List[str]) -> str:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-st.markdown('<div class="chat-box">', unsafe_allow_html=True)
 for message in st.session_state.messages:
-    role_class = "user" if message["role"] == "user" else "assistant"
-    st.markdown(f'<div class="chat-message {role_class}">{message["content"]}</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
     if message["role"] == "user":
         st.markdown(f'''
         <div class="chat-message user">
             <div class="avatar">
-                <img src="https://i.ibb.co/rdZC7LZ/Photo-logo-1.png">
+                <img src="icons/user.png">
             </div>
             <div class="message">{message["content"]}</div>
         </div>
@@ -210,20 +206,18 @@ st.markdown('</div>', unsafe_allow_html=True)
         st.markdown(f'''
         <div class="chat-message bot">
             <div class="avatar">
-                <img src="https://i.ibb.co/cN0nmSj/Photo-logo-2.png">
+                <img src="n23_icon.png">
             </div>
             <div class="message">{message["content"]}</div>
         </div>
         ''', unsafe_allow_html=True)
 
-# Use Streamlit columns to place the input and checkbox side by side
 if user_prompt := st.chat_input("Ask a question about bioinformatics"):
     st.session_state.messages.append({"role": "user", "content": user_prompt})
-    st.markdown(f'<div class="chat-message user">{user_prompt}</div>', unsafe_allow_html=True)
     st.markdown(f'''
     <div class="chat-message user">
         <div class="avatar">
-            <img src="https://i.ibb.co/rdZC7LZ/Photo-logo-1.png">
+            <img src="icons/user.png">
         </div>
         <div class="message">{user_prompt}</div>
     </div>
@@ -235,11 +229,10 @@ if user_prompt := st.chat_input("Ask a question about bioinformatics"):
         except Exception as e:
             full_response = f"An error occurred while processing your query: {e}"
 
-        st.markdown(f'<div class="chat-message assistant">{full_response}</div>', unsafe_allow_html=True)
         st.markdown(f'''
         <div class="chat-message bot">
             <div class="avatar">
-                <img src="https://i.ibb.co/cN0nmSj/Photo-logo-2.png">
+                <img src="n23_icon.png">
             </div>
             <div class="message">{full_response}</div>
         </div>
