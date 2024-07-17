@@ -189,7 +189,7 @@ for message in st.session_state.messages:
         st.markdown(f'''
         <div class="chat-message user">
             <div class="avatar">
-                <img src="https://i.ibb.co/rdZC7LZ/Photo-logo-1.png">
+                <img src="n23_icon.png">
             </div>
             <div class="message">{message["content"]}</div>
         </div>
@@ -198,7 +198,7 @@ for message in st.session_state.messages:
         st.markdown(f'''
         <div class="chat-message bot">
             <div class="avatar">
-                <img src="https://i.ibb.co/cN0nmSj/Photo-logo-2.png">
+                <img src="n23_icon.png">
             </div>
             <div class="message">{message["content"]}</div>
         </div>
