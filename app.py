@@ -9,6 +9,13 @@ from typing import List
 import requests
 import pyshorteners
 
+st.set_page_config(
+    page_title="Bioinformatics Chatbot",
+    page_icon="n23_icon.png",
+    initial_sidebar_state="expanded",
+    layout="wide"
+)
+
 # Load custom CSS
 def load_css():
     with open("style.css") as f:
@@ -21,12 +28,6 @@ load_css()
 secrets = toml.load("streamlit/secrets.toml")
 
 # Set up the app with an icon and a custom title
-st.set_page_config(
-    page_title="Bioinformatics Chatbot",
-    page_icon="n23_icon.png",
-    initial_sidebar_state="expanded",
-    layout="wide"
-)
 
 st.title("Bioinformatics Chatbot")
 
