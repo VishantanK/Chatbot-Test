@@ -34,14 +34,13 @@ st.title("Bioinformatics Chatbot")
 # Sidebar options
 with st.sidebar:
     st.markdown("# Chat Options")
-    model = st.selectbox('Select model', ('gpt-3.5-turbo', 'gpt-4o'))
+    use_model = st.selectbox('Select model', ('gpt-3.5-turbo', 'gpt-4o'), help="GPT4o is more accurate but a bit more expensive")
     max_token_length = st.number_input('Max Token Length', value=1000, min_value=200, max_value=1000, step=100,
-                                       help="Maximum number of tokens to be used when generating output.")
+                                       help="Tokens increase accuracy for a bit higher cost")
     include_stringdb = st.checkbox("Include STRING DB")
 
 # OpenAI API Key
-llm4 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-4o", temperature=0)
-llm3_5 = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model="gpt-3.5-turbo", temperature=0)
+llm = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model=use_model, temperature=0, max_tokens = max_token_length)
 
 # Neo4j Graph connection
 graph = Neo4jGraph(
@@ -78,7 +77,7 @@ decompose_prompt = PromptTemplate(
     """
 )
 
-decompose_chain = LLMChain(llm=llm4, prompt=decompose_prompt)
+decompose_chain = LLMChain(llm=llm, prompt=decompose_prompt)
 
 def decompose_query(query: str, schema: str) -> List[str]:
     result = decompose_chain.run(schema=schema, query=query)
@@ -103,7 +102,7 @@ cypher_generation_prompt = PromptTemplate(
 )
 
 cypher_chain = GraphCypherQAChain.from_llm(
-    llm4,
+    llm,
     graph=graph,
     cypher_prompt=cypher_generation_prompt,
     verbose=True,
@@ -125,7 +124,7 @@ compile_prompt = PromptTemplate(
     """
 )
 
-compile_chain = LLMChain(llm=llm4, prompt=compile_prompt)
+compile_chain = LLMChain(llm=llm, prompt=compile_prompt)
 
 gene_extraction_prompt = PromptTemplate(
     input_variables=["text"],
@@ -136,7 +135,7 @@ gene_extraction_prompt = PromptTemplate(
     """
 )
 
-gene_extraction_chain = LLMChain(llm=llm4, prompt=gene_extraction_prompt)
+gene_extraction_chain = LLMChain(llm=llm, prompt=gene_extraction_prompt)
 
 def compile_results(query: str, results: List[str], include_stringdb: bool) -> str:
     compiled_result = compile_chain.run(query=query, results="\n\n".join(results))
