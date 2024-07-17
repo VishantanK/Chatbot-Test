@@ -195,12 +195,13 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if user_prompt := st.chat_input("Ask a question about bioinformatics"):
-    st.session_state.messages.append({"role": "user", "content": user_prompt})
+if prompt := st.chat_input("Ask a question about bioinformatics"):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-    with st.spinner('Processing your query...'):
-        try:
-            full_response = process_query(user_prompt, model, max_token_length, include_stringdb)
-        except Exception as e:
-            full_response = f"An error occurred while processing your query: {e}"
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        full_response = process_query(prompt)
+        message_placeholder.markdown(full_response)
+    st.session_state.messages.append({"role": "assistant", "content": full_response})
