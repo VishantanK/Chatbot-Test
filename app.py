@@ -115,7 +115,7 @@ compile_prompt = PromptTemplate(
 #st.set_page_config(page_title="Bioinformatics Knowledge Graph Chatbot", initial_sidebar_state="expanded", layout="wide")
 
 # Title and sidebar inputs
-st.title("Bioinformatics Knowledge Graph Chatbot")
+st.title("N23 Chatbot")
 
 with st.sidebar:
     st.markdown("# Chat Options")
