@@ -1,13 +1,13 @@
 import streamlit as st
-import toml
+import redis
+import hashlib
 from langchain_openai import ChatOpenAI
 from langchain_community.graphs import Neo4jGraph
-from langchain.chains import GraphCypherQAChain
-from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
+from langchain.prompts import PromptTemplate
+from neo4j import GraphDatabase
 from typing import List
-import requests
-import pyshorteners
+import time
 
 st.set_page_config(
     page_title="Bioinformatics Chatbot",
@@ -16,190 +16,174 @@ st.set_page_config(
     layout="wide"
 )
 
-# Load custom CSS
-def load_css():
-    with open("style.css") as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-
-# Call this function at the beginning of your app
-load_css()
-
-# Load secrets
-secrets = toml.load("streamlit/secrets.toml")
-
-# Set up the app with an icon and a custom title
-
-st.title("Bioinformatics Chatbot")
-
-# Sidebar options
-with st.sidebar:
-    st.markdown("# Chat Options")
-    use_model = st.selectbox('Select model', ('gpt-4o', 'gpt-3.5-turbo'), help="GPT4o is more accurate but a bit more expensive")
-    max_token_length = st.selectbox('Max Token Length', (None, 20000, 10000, 5000), help="Can decrease to reduce chat-cost")
-    include_stringdb = st.checkbox("Include STRING DB")
-
-# OpenAI API Key
-llm = ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"], model=use_model, temperature=0, max_tokens = max_token_length)
-
-# Neo4j Graph connection
+# Key variables
+api_key = st.secrets["OPENAI_API_KEY"]
+URL = st.secrets["url"]
+AUTH = (st.secrets["username"], st.secrets["password"])
+driver = GraphDatabase.driver(URL, auth=AUTH)
+driver.verify_connectivity()
 graph = Neo4jGraph(
     url=st.secrets["url"],
     username=st.secrets["username"],
     password=st.secrets["password"]
 )
 
-# Improved decomposition prompt template
-decompose_prompt = PromptTemplate(
-    input_variables=["schema", "query"],
-    template="""
-    Given the schema: {schema}, and the query: {query}, decompose the query into a series of relevant subqueries. 
-    Each subquery will be used to invoke a GraphCypherQAChain to retrieve the answer.
-    Examples:
-    1. If the query asks you to give information on the risks associated with a particular gene, give information from all nodes, relations or properties that are involved with risk for instance risk score, SMR, colocalization, sources etc.
-    2. If the query asks for a Gene Ontology, give all the relevant information on the gene ontology
-    3. If statistical significance is mentioned, ensure that p-value is < 0.05.
-    4. If asked about directionality, look at the beta value
-    5. Properties such as p-value, beta, risk sources etc. are stores as relation properties and not node properties. So, ensure that you are looking at the correct properties.
-    6. For questions that have a simple answer, such as "What is the name of the gene?" or "What does this annotation term mean?" Just output 1 subquery that retrieves the answer.
-    7. Do not generate redundant subqueries such as outputting the gene node when a simple count is asked for.
-    
-    If a query can be answered by a single subquery, DO NOT output multiple subqueries.
-
-    KEEP THE NUMBER OF SUBQUERIES TO A MINIMUM. 
-    DO NOT MAKE SUBQUERIES THAT GIVE SAME INFORMATION.
-    DO NOT MAKE SUBQUERIES THAT ARE NOT RELEVANT TO THE QUERY.
-    DO NOT OUTPUT A CYPHER QUERY AS A SUBQUERY.
-    DO NOT MAKE DUPLICATE SUBQUERIES.
-    MAXIMUM OF 3 SUBQUERIES.
-
-    Output the subqueries in a numbered list, with each subquery on a new line.
-    """
+# Redis setup
+redis_client = redis.StrictRedis(
+    host=st.secrets["redis_host"],
+    port=12019,
+    password=st.secrets["redis_password"],
+    db=0,
+    decode_responses=True
 )
 
-decompose_chain = LLMChain(llm=llm, prompt=decompose_prompt)
 
-def decompose_query(query: str, schema: str) -> List[str]:
-    result = decompose_chain.run(schema=schema, query=query)
-    subqueries = [sq.strip() for sq in result.split('\n') if sq.strip() and sq[0].isdigit()]
-    return subqueries
+# Function to create a unique key for caching
+def create_cache_key(query: str, schema: str):
+    return hashlib.sha256((query + schema).encode()).hexdigest()
 
-# Improved Cypher query generation template
+# Function to cache and retrieve results from Redis
+def cache_results(key: str, results=None):
+    if results:
+        redis_client.set(key, str(results))
+        return results
+    cached_results = redis_client.get(key)
+    if cached_results:
+        return eval(cached_results)
+    return None
+
+# Function to store conversation context
+def store_context(session_id: str, question: str, answer: str):
+    context_key = f"context:{session_id}"
+    context_data = redis_client.get(context_key)
+    if context_data:
+        context = context_data
+        context += f"\nUser: {question}\nBot: {answer}"
+    else:
+        context = f"User: {question}\nBot: {answer}"
+    redis_client.set(context_key, context, ex=86400)  # Set TTL to 24 hours
+
+# Function to retrieve conversation context
+def get_context(session_id: str) -> str:
+    context_key = f"context:{session_id}"
+    context_data = redis_client.get(context_key)
+    if context_data:
+        return context_data
+    return ""
+
+# OpenAI API initialization
+def get_openai_llm(api_key, model, temperature, max_tokens):
+    return ChatOpenAI(openai_api_key=api_key, model=model, temperature=temperature, max_tokens=max_tokens)
+
+
+# Define the prompt templates
 cypher_generation_prompt = PromptTemplate(
     template="""
-    You are an expert Neo4j Developer translating user questions into Cypher to answer questions about bioinformatics and biology from given Knowledge Graphs
+    You are an expert Neo4j Developer translating user questions into Cypher to answer questions about bioinformatics and biology from given Knowledge Graphs.
 
     Instructions:
-    ONLY ANSWER IN CYPHER QUERIES
-    RETURN CORRECT QUERIES ONLY
+    ONLY RETURN THE CYPHER QUERY
+    DO NOT INCLUDE ANY EXPLANATION, NATURAL LANGUAGE TEXT, OR CODE BLOCKS
+    ALWAYS CALL RELATIONSHIPS r
+    FOR INTERACTIONS CHECK FOR BOTH DIRECTIONS
     P-VALUE AND BETA ARE ALWAYS RELATIONSHIP PROPERTIES CALLED AS:
     (g:GENE)-[r:HAS_GWAS_RISK]->(gwas:RISK_GWAS) RETURN r.p_value, r.beta (EXAMPLE JUST FOR GWAS)
-    
+
     Schema: {schema}
     Question: {question}
     """,
     input_variables=["schema", "question"],
 )
 
-cypher_chain = GraphCypherQAChain.from_llm(
-    llm,
-    graph=graph,
-    cypher_prompt=cypher_generation_prompt,
-    verbose=True,
-    return_intermediate_steps=False,
-    return_intermediate_results=False,
-    top_k=30
-)
-
 compile_prompt = PromptTemplate(
     input_variables=["query", "results"],
     template="""
-    You are a domain expert in bioinformatics and biology and will compile cypher query results into a single coherent answer given the original query:{query} And the following results from subqueries: {results}
-    DO NOT cite anything
-    DO NOT include the original query in the answer
-    CAN use existing knowledge to compile the answer
-    If information is missing, answer based on your existing knowledge
-    PROVIDE DISCLAIMER if using existing knowledge
-    Be concise and to the point
+    You are a domain expert in bioinformatics and biology and will compile cypher query results into a single coherent answer given the original query: {query} and the following results from subqueries: {results}.
+    DO NOT cite anything.
+    DO NOT include the original query in the answer.
+    CAN use existing knowledge to compile the answer.
+    If information is missing, answer based on your existing knowledge.
+    PROVIDE DISCLAIMER if using existing knowledge.
+    Be concise and to the point.
+    Format the response using Markdown:
+    - Use **bold** for important terms
+    - Use bullet points for lists
     """
 )
 
-compile_chain = LLMChain(llm=llm, prompt=compile_prompt)
+# Streamlit app
+st.set_page_config(page_title="Bioinformatics Knowledge Graph Chatbot", initial_sidebar_state="expanded", layout="wide")
 
-gene_extraction_prompt = PromptTemplate(
-    input_variables=["text"],
-    template="""
-    Extract all gene symbols from the following text. Gene symbols are typically all uppercase and may include numbers. Return the gene symbols as a comma-separated list.
+# Title and sidebar inputs
+st.title("Bioinformatics Knowledge Graph Chatbot")
 
-    Text: {text}
-    """
-)
+with st.sidebar:
+    st.markdown("# Chat Options")
+    model = st.selectbox("Select GPT Model", ["gpt-4o-mini", "gpt-4o"])
+    max_tokens = st.number_input("Output Token Length", min_value=1, max_value=4096, value=4096)
+    temperature = st.slider("Temperature", min_value=0.0, max_value=0.5, value=0.01)
 
-gene_extraction_chain = LLMChain(llm=llm, prompt=gene_extraction_prompt)
 
-def compile_results(query: str, results: List[str], include_stringdb: bool) -> str:
-    compiled_result = compile_chain.run(query=query, results="\n\n".join(results))
-    
-    if include_stringdb:
-        # Extract gene symbols from the final response
-        gene_symbols_text = gene_extraction_chain.run(text=compiled_result)
-        gene_symbols = [gene.strip() for gene in gene_symbols_text.split(',')]
-        if gene_symbols:
-            stringdb_url = get_stringdb_info(gene_symbols)
-            compiled_result += f"\n\nSTRING DB Network: {stringdb_url}"
-    
-    return compiled_result
+# Initialize LLMs
+llm4 = get_openai_llm(api_key, model, temperature, max_tokens)
+cypher_chain = LLMChain(llm=llm4, prompt=cypher_generation_prompt)
+compile_chain = LLMChain(llm=llm4, prompt=compile_prompt)
+schema = graph.schema
 
-def process_query(query: str, model: str, max_token_length: int, include_stringdb: bool) -> str:
-    schema = graph.schema
-    subqueries = decompose_query(query, schema)
-    
-    results = []
-    for subquery in subqueries:
-        try:
-            result = cypher_chain.invoke({"query": subquery})
-            if not result['result']:
-                # If the result is empty, handle it appropriately
-                results.append(f"Subquery: {subquery}\nResult: No data found in the graph database for this subquery.")
-            else:
-                results.append(f"Subquery: {subquery}\nResult: {result['result']}")
-        except Exception as e:
-            results.append(f"Subquery: {subquery}\nError: {e}")
-    
-    # Compile results and add disclaimer for external knowledge
-    final_result = compile_results(query, results, include_stringdb)
-    if "No data found" in final_result:
-        additional_info = llm4.run(f"Provide information on {query} from general knowledge.", model=model, max_tokens=max_token_length)
-        final_result += f"\n\n{additional_info}\n\nDisclaimer: Some information is based on existing knowledge in the field of bioinformatics and biology."
-    
-    return final_result
-
-def get_stringdb_info(genes: List[str]) -> str:
-    base_url = "https://string-db.org/cgi/network?identifiers="
-    gene_string = "%0d".join(genes)
-    url = f"{base_url}{gene_string}&species=9606&show_query_node_labels=1"
-    
-    type_tiny = pyshorteners.Shortener()
-    
-    response = requests.get(url)
-    if response.status_code == 200:
-        return type_tiny.tinyurl.short(url)
+# Function to generate and execute Cypher queries
+def process_query(session_id: str, query: str, schema: str):
+    cache_key = create_cache_key(query, schema)
+    cached_results = cache_results(cache_key)
+    if cached_results:
+        results = cached_results
     else:
-        return "Failed to retrieve data from STRING DB"
+        cypher_query = cypher_chain.run({"schema": schema, "question": query})
+        cypher_query = cypher_query.strip().replace("```cypher", "").replace("```", "").strip()
 
+        with driver.session() as session:
+            results = session.run(cypher_query)
+            results = [record.data() for record in results]
+
+        cache_results(cache_key, results)
+
+    final_answer_placeholder = st.empty()
+    
+    def generate_final_answer():
+        partial_answer = ""
+        final_response = compile_chain.run({"query": query, "results": results})
+        for char in final_response:
+            partial_answer += char
+            final_answer_placeholder.markdown(partial_answer)
+            time.sleep(0.01)
+        return final_response
+    
+    final_response = generate_final_answer()
+
+    st.subheader("Generated Cypher Query")
+    st.code(cypher_query)
+    
+    return final_response
+
+# Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+session_id = st.session_state.get('session_id', str(time.time()))
+st.session_state['session_id'] = session_id
+
+# Display chat messages
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# Chat input
 if prompt := st.chat_input("Ask a question about bioinformatics"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-
+    
     with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = process_query(prompt, use_model, max_token_length, include_stringdb)
-        message_placeholder.markdown(full_response)
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+        context = get_context(session_id)
+        full_response = process_query(session_id, f"{context}\n{prompt}", schema)
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
+        store_context(session_id, prompt, full_response)
