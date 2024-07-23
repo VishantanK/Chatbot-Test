@@ -112,7 +112,7 @@ compile_prompt = PromptTemplate(
 )
 
 # Streamlit app
-st.set_page_config(page_title="Bioinformatics Knowledge Graph Chatbot", initial_sidebar_state="expanded", layout="wide")
+#st.set_page_config(page_title="Bioinformatics Knowledge Graph Chatbot", initial_sidebar_state="expanded", layout="wide")
 
 # Title and sidebar inputs
 st.title("Bioinformatics Knowledge Graph Chatbot")
