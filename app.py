@@ -8,6 +8,7 @@ from langchain.prompts import PromptTemplate
 from neo4j import GraphDatabase
 from typing import List
 import time
+import pandas as pd
 
 st.set_page_config(
     page_title="Bioinformatics Chatbot",
