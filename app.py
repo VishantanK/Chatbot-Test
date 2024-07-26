@@ -61,7 +61,7 @@ def store_context(session_id: str, question: str, answer: str):
         context += f"\nUser: {question}\nBot: {answer}"
     else:
         context = f"User: {question}\nBot: {answer}"
-    redis_client.set(context_key, context, ex=86400)  # Set TTL to 24 hours
+    redis_client.set(context_key, context, ex=1200)  # Set TTL to 24 hours
 
 # Function to retrieve conversation context
 def get_context(session_id: str) -> str:
