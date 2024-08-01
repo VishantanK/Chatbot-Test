@@ -267,7 +267,7 @@ The relationships:
 (:Gene)-[:HAS_pQTL_SMR_HIT]->(:pQTL_SMR)
 (:Gene)-[:HAS_eQTL_COLOCALIZATION_HIT]->(:eQTL_Coloc_Tissue)
 (:Gene)-[:HAS_pQTL_COLOCALIZATION_HIT]->(:pQTL_Colocalization)
-(:Protein)-[:HAS_3D_STRUCTURE]->(:3D_Structure)
+(:Protein)-[:HAS_3D_STRUCTURE]->(:Structure)
 (:Protein)-[:IS_TYPE]->(:Protein_type)
 (:Protein)-[:HAS_ADDITIONAL_INFO]->(:Comment)
 (:Protein)-[:HAS_PROTEOMIC_DATA]->(:Cell)
