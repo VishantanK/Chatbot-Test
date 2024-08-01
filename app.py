@@ -96,18 +96,18 @@ cypher_generation_prompt = PromptTemplate(
     - Protein_Class CONTAINS INFO ON WETHER A PROTEIN IS KINASE, CYTOKINE BASICALLY SUBCATEGORY.
     - FOR SMR, GWAS, COLOC, SINGLE CELL DATA, FIRST CHECK IF THE GENE HAS THAT NODE AND THEN CHECK THE INFO RELATIONSHIP AND HIT NODES
     - FOR COLOC_pQTL IN THE COLOC_pQTL INFO RELATIONSHIP CIS_TRANS = TRUE MEANS CIS AND OTHERWISE MEANS FALSE
-    - MAKE SURE IF YOU QUERY A PATHWAY NAME OR CLASS OR ONTOLOGY NAME, IT IS CASE-INDEPENDANT (ALWAYS CONVERT TO LOWER CASE TO CHECK)
     - DIRECTIONALITY IN GWAS, AND SMR IS BASED ON THE SIGN OF THE BETA-VALUE
     - For SMR check both pQTL and OmicSynth SMR info unless specified
     - Protein Class is connected to the Gene node with the BELONGS_TO_CLASS relationship
     - Protein Type is connected to the Protein node with the IS_TYPE relationship.
     - IF Protein_Class is not present, look for Comment node for additional information
+    - FOR PROTEIN_CLASS or PROTEIN_TYPE or ONTOLOGY or PATHWAY ALWAYS CONVERT BOTH TO LOWER CASE WITH toLower() BEFORE SEARCHING AND USE THE TERM CONTAINS INSTEAD OF =
 
     
     Example Queries and Answers:
     - "Which genes have a risk score > 4 and are druggable?" : MATCH (g:Gene)-[r1:HAS_RISK_SCORE]->(r:Risk_Score), (g)-[r2:IS_DRUGGABLE]->(d:Druggability) WHERE r.score > 4 AND d.druggability_query = TRUE RETURN g, r, d, r1, r2
     - "Which genes among [gene_list] are enzymes?" : MATCH (g:Gene)-[r1:CODES]->(p:Protein)-[r2:IS_TYPE]->(pt:Protein_type) WHERE g1.symbol IN [gene_list] RETURN g, p, pt, r1, r2, r3
-    - "Which genes are kinases?" : MATCH (g:Gene)-[r1:BELONGS_TO_CLASS]->(pc:Protein_Class) WHERE pc.protein_class = "Kinase" RETURN g, p, pc, r1
+    - "Which genes are kinases?" : MATCH (g:Gene)-[r1:BELONGS_TO_CLASS]->(pc:Protein_Class) WHERE toLower(pc.protein_class) CONTAINS toLower("Kinase") RETURN g, p, pc
     - "What are the pathways for genes having risk scores > 4?" : MATCH (g:Gene)-[r1:HAS_RISK_SCORE]->(r:Risk_Score), (g)-[r2:INVOLVED_IN_PATHWAY]->(p:Pathway) WHERE r.score > 4 RETURN g, p
     - "What are the risk sources for genes?" : MATCH (g:Gene)-[r1:HAS_RISK_SCORE]->(r:Risk_Score) RETURN g, r, r1
     "Colocalization and SMR info for gene X" : MATCH (g:Gene)
@@ -146,7 +146,7 @@ kg_generation_prompt = PromptTemplate(
      Example Queries and Answers:
     - "Which genes have a risk score > 4 and are druggable?" : MATCH (g:Gene)-[r1:HAS_RISK_SCORE]->(r:Risk_Score), (g)-[r2:IS_DRUGGABLE]->(d:Druggability) WHERE r.score > 4 AND d.druggability_query = TRUE RETURN g, r, d, r1, r2
     - "Which genes are enzymes?" : MATCH (g:Gene)-[r1:CODES]->(p:Protein)-[r2:IS_TYPE]->(pt:Protein_type), (g:Gene)-[r3:BELONGS_TO_CLASS]->(pc:Protein_Class) RETURN g, p, pt, pc, r1, r2, r3
-    - "Which genes are kinases?" : MATCH (g:Gene)-[r1:BELONGS_TO_CLASS]->(pc:Protein_Class) WHERE pc.protein_class = "Kinase" RETURN g, p, pc, r1
+    - "Which genes are kinases?" : MATCH (g:Gene)-[r1:BELONGS_TO_CLASS]->(pc:Protein_Class) WHERE toLower(pc.protein_class) CONTAINS toLower("Kinase") RETURN g, p, pc, r1
     - "What are the pathways for genes having risk scores > 4?" : MATCH (g:Gene)-[r1:HAS_RISK_SCORE]->(r:Risk_Score), (g)-[r2:INVOLVED_IN_PATHWAY]->(p:Pathway) WHERE r.score > 4 RETURN g, p, r1, r2
     - "What are the risk sources for genes?" : MATCH (g:Gene)-[r1:HAS_RISK_SCORE]->(r:Risk_Score) RETURN g, r, r1
     "Colocalization and SMR info for gene X" : MATCH (g:Gene)
