@@ -1,7 +1,7 @@
 import streamlit as st
 import redis
 import hashlib
-from langchain_openai import ChatOpenAI, 
+from langchain_openai import ChatOpenAI
 from langchain_community.graphs import Neo4jGraph
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
