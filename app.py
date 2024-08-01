@@ -1,7 +1,7 @@
 import streamlit as st
 import redis
 import hashlib
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI, 
 from langchain_community.graphs import Neo4jGraph
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
@@ -79,7 +79,6 @@ def get_openai_llm(api_key, model, temperature, max_tokens):
 cypher_generation_prompt = PromptTemplate(
     template="""
     You are an expert Neo4j Developer translating user questions into Cypher to answer questions from given Knowledge Graphs. You will be given:
-    
     1. The schema of the Knowledge Graph
     2. The user question
     3. Context in the form of previous question and bot response
@@ -102,6 +101,7 @@ cypher_generation_prompt = PromptTemplate(
     - Protein Type is connected to the Protein node with the IS_TYPE relationship.
     - IF Protein_Class is not present, look for Comment node for additional information
     - FOR PROTEIN_CLASS or PROTEIN_TYPE or ONTOLOGY or PATHWAY ALWAYS CONVERT BOTH TO LOWER CASE WITH toLower() BEFORE SEARCHING AND USE THE TERM CONTAINS INSTEAD OF =
+    - For Gene_Ontology, name of ontology is in Gene_ontology.name and info on Bioprocess, molecular function and Cellular Component is in Gene_Ontology.ontology_term
 
     
     Example Queries and Answers:
@@ -123,6 +123,9 @@ cypher_generation_prompt = PromptTemplate(
         WHERE (pqtl_smr_info.p_smr < 0.05 OR omicsynth_info.p_smr < 0.05 AND g.symbol = "X")
         RETURN COUNT(DISTINCT pqtl_smr_info) + COUNT(DISTINCT omicsynth_info) AS Statistically_Significant_SMR_Hits
     - "Additional information for gene X" : MATCH (g:Gene)-[r1:CODES]->(p:Protein)-[r2:HAS_ADDITIONAL_INFO]->(pc:Comment) WHERE g.symbol IN ["X"] RETURN g, p, pc
+    - "What are the Biological Process Ontologies for X?" : MATCH (g:Gene)-[:HAS_ONTOLOGY]->(go:Gene_Ontology) WHERE g.symbol = "X" RETURN go.name, go.ontology_term
+
+ 
     Schema: {schema}
     Question: {question}
     """,
@@ -157,6 +160,8 @@ kg_generation_prompt = PromptTemplate(
         WHERE g.symbol = "X" RETURN g, eqtl, pqtl, pqtl_smr, omicsynth, eqtl_info, pqtl_info, pqtl_smr_info, omicsynth_info, r1, r2, r3, r4, r5, r6, r7, r8
     - "How many statistically significant GWAS hits does gene X have?" : MATCH (g:Gene)-[r1:HAS_GWAS_HIT]->(gw:GWAS)-[r2:GWAS_INFO]->(gw_hit:GWAS_HIT) WHERE (gw_hit.pval < 0.05 AND g.symbol = "X") RETURN g, gw, gw_hit, r1, r2
     - "Additional information for gene X" : MATCH (g:Gene)-[r1:CODES]->(p:Protein)-[r2:HAS_ADDITIONAL_INFO]->(pc:Comment) WHERE g.symbol IN ["X"] RETURN g, p, pc, r1, r2
+    - "What are the Biological Process Ontologies for X?" : MATCH (g:Gene)-[:HAS_ONTOLOGY]->(go:Gene_Ontology) WHERE g.symbol = "X" RETURN go, g
+
 
 
     Schema: {schema}
