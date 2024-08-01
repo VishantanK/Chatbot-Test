@@ -38,7 +38,10 @@ redis_client = redis.StrictRedis(
     decode_responses=True
 )
 
-
+# Function to create a unique key for caching
+def create_cache_key(query: str, schema: str):
+    return hashlib.sha256((query + schema).encode()).hexdigest()
+    
 # Function to cache and retrieve results from Redis
 def cache_results(key: str, results=None):
     if results:
