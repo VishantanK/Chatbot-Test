@@ -123,6 +123,7 @@ cypher_generation_prompt = PromptTemplate(
         RETURN COUNT(DISTINCT pqtl_smr_info) + COUNT(DISTINCT omicsynth_info) AS Statistically_Significant_SMR_Hits
     - "Additional information for gene X" : MATCH (g:Gene)-[r1:CODES]->(p:Protein)-[r2:HAS_ADDITIONAL_INFO]->(pc:Comment) WHERE g.symbol IN ["X"] RETURN g, p, pc
     - "What are the Biological Process Ontologies for X?" : MATCH (g:Gene)-[:HAS_ONTOLOGY]->(go:Gene_Ontology) WHERE g.symbol = "X" RETURN go.name, go.ontology_term
+    - "What are the Molecular Functions or Cellular Processes for X?" : MATCH (g:Gene)-[:HAS_ONTOLOGY]->(go:Gene_Ontology) WHERE g.symbol = "X" RETURN go.name, go.ontology_term
 
  
     Schema: {schema}
