@@ -207,7 +207,7 @@ llm4 = get_openai_llm(api_key, model, temperature, max_tokens)
 llm4mini = get_openai_llm(api_key, "gpt-4o-mini", temperature, max_tokens)
 cypher_chain = LLMChain(llm=llm4, prompt=cypher_generation_prompt)
 kg_chain = LLMChain(llm=llm4, prompt=kg_generation_prompt)
-compile_chain = LLMChain(llm=llm, prompt=compile_prompt)
+compile_chain = LLMChain(llm=llm4, prompt=compile_prompt)
 
 schema = """
 Node properties:
