@@ -243,7 +243,7 @@ pQTL_SMR_HIT {tissue: STRING, omic: STRING}
 eQTL_Coloc_Hit {tissue: STRING, omic: STRING}
 pQTL_Coloc_Hit {tissue: STRING, omic: STRING}
 SC_Expression {Symbol: STRING, single_cell: STRING}
-3D_Structure {3D structure: BOOLEAN}
+Structure {Structure_available: BOOLEAN}
 Protein_type {Protein class: STRING, Protein_type: STRING}
 Relationship properties:
 HAS_RISK_SCORE {available: INTEGER, Source: STRING}
