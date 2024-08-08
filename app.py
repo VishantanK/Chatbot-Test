@@ -162,6 +162,8 @@ kg_generation_prompt = PromptTemplate(
     - "How many statistically significant GWAS hits does gene X have?" : MATCH (g:Gene)-[r1:HAS_GWAS_HIT]->(gw:GWAS)-[r2:GWAS_INFO]->(gw_hit:GWAS_HIT) WHERE (gw_hit.pval < 0.05 AND g.symbol = "X") RETURN g, gw, gw_hit, r1, r2
     - "Additional information for gene X" : MATCH (g:Gene)-[r1:CODES]->(p:Protein)-[r2:HAS_ADDITIONAL_INFO]->(pc:Comment) WHERE g.symbol IN ["X"] RETURN g, p, pc, r1, r2
     - "What are the Biological Process Ontologies for X?" : MATCH (g:Gene)-[:HAS_ONTOLOGY]->(go:Gene_Ontology) WHERE g.symbol = "X" RETURN go, g
+    - "Give the pqtl_SMR hit info for gene X - p-value, beta value, what is the hit etc." : MATCH (g:Gene)-[r1:HAS_pQTL_SMR_HIT]->(pqtl_smr: pQTL_SMR)-[r2:pQTL_SMR_INFO]->(pqtl_smr_info: pQTL_SMR_HIT) WHERE g.symbol = "X" RETURN g, r1, pqtl_smr, r1, r2, pqtl_smr_info
+    [Same thing can be done for omicsynth, GWAS, pqtl and eqtl Colocalization etc]
 
 
 
