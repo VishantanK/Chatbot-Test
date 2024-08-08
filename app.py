@@ -205,11 +205,16 @@ st.title("Bioinformatics Knowledge Graph Chatbot")
 
 with st.sidebar:
     st.markdown("# Chat Options")
-    model = st.selectbox("Select GPT Model", ["gpt-4o-mini", "gpt-4o"])
+    use_model = st.selectbox("Select GPT Model", ["gpt-4o", "gpt-4o-mini"])
     max_tokens = st.number_input("Output Token Length", min_value=1, max_value=4096, value=4096)
     temperature = st.slider("Temperature", min_value=0.0, max_value=0.5, value=0.01)
     generate_kg = st.checkbox("Generate Knowledge Graph")
 
+if use_model == "gpt-4o":
+    model = "gpt-4o-2024-08-06"
+else:
+    model = "gpt-4o-mini
+    
 # Initialize LLMs
 llm4 = get_openai_llm(api_key, model, temperature, max_tokens)
 llm4mini = get_openai_llm(api_key, "gpt-4o-mini", temperature, max_tokens)
