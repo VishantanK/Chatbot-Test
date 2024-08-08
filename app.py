@@ -213,7 +213,7 @@ with st.sidebar:
 if use_model == "gpt-4o":
     model = "gpt-4o-2024-08-06"
 else:
-    model = "gpt-4o-mini
+    model = "gpt-4o-mini"
     
 # Initialize LLMs
 llm4 = get_openai_llm(api_key, model, temperature, max_tokens)
