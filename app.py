@@ -204,7 +204,7 @@ compile_prompt = PromptTemplate(
 )
 
 # Title and sidebar inputs
-st.title("Bioinformatics Knowledge Graph Chatbot")
+st.title("ALS Chatbot")
 
 with st.sidebar:
     st.markdown("# Chat Options")
