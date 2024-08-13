@@ -321,8 +321,8 @@ def process_query(session_id: str, query: str, schema: str):
     # Store the Cypher query in the session state
     st.session_state.queries.append(cypher_query)
     
-    st.subheader("Generated Cypher Query")
-    st.code(cypher_query)
+    # st.subheader("Generated Cypher Query")
+    # st.code(cypher_query)
 
     if generate_kg:
         kg_query = kg_chain.run({"schema": schema, "question": query})
@@ -330,6 +330,9 @@ def process_query(session_id: str, query: str, schema: str):
         st.subheader("Knowledge Graph Cypher Query")
         st.code(kg_query)
         st.markdown("To visualize the KG, input the cypher query [here](http://35.203.6.204:7474/browser/)", unsafe_allow_html=True)
+        # Store the Cypher query in the session state
+        st.session_state.queries.append(kg_query)
+        
 
     return final_response
 
