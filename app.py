@@ -164,6 +164,7 @@ kg_generation_prompt = PromptTemplate(
     - "What are the Biological Process Ontologies for X?" : MATCH (g:Gene)-[:HAS_ONTOLOGY]->(go:Gene_Ontology) WHERE g.symbol = "X" RETURN go, g
     - "Give the pqtl_SMR hit info for gene X - p-value, beta value, what is the hit etc." : MATCH (g:Gene)-[r1:HAS_pQTL_SMR_HIT]->(pqtl_smr: pQTL_SMR)-[r2:pQTL_SMR_INFO]->(pqtl_smr_info: pQTL_SMR_HIT) WHERE g.symbol = "X" RETURN g, r1, pqtl_smr, r1, r2, pqtl_smr_info
     [Same thing can be done for omicsynth, GWAS, pqtl and eqtl Colocalization etc]
+    - "Which genes are enzymes and have a risk score >=4" : MATCH (g:Gene)-[r1:CODES]->(p:Protein)-[r2:IS_TYPE]->(pt:Protein_type), (g)-[r2:HAS_RISK_SCORE]->(r:Risk_Score) WHERE toLower(pt.Protein_type) = "enzyme" AND r.score >= 4 RETURN g, pc, r, r1, r2
 
 
 
