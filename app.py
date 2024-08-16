@@ -9,6 +9,7 @@ from neo4j import GraphDatabase
 from typing import List
 import time
 import pandas as pd
+from openai import OpenAIError
 
 st.set_page_config(
     page_title="Bioinformatics Chatbot",
@@ -310,11 +311,17 @@ def process_query(session_id: str, query: str, schema: str):
     
     def generate_final_answer():
         partial_answer = ""
-        final_response = compile_chain.run({"query": query, "results": str(results)})
+
+        try:
+            final_response = compile_chain.run({"query": query, "results": str(results)})
+        except OpenAIError as e:
+            final_response = "Result exceeds token limit. Please try again with a more specific query."
+
         for char in final_response:
             partial_answer += char
             final_answer_placeholder.markdown(partial_answer)
             time.sleep(0.01)
+        
         return final_response
     
     final_response = generate_final_answer()
